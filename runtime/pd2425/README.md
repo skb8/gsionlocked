@@ -129,3 +129,13 @@ The owner accepts reboot recovery, so hot restore is deferred; source partition
 and data protection remain mandatory. Physical takeover is still unavailable.
 The previous syscall-guard test is now device-confirmed; real GSI preview is
 implemented but device-unvalidated. No GSI/Vivo binaries are distributed.
+
+
+Owner-device milestone: APK 0.1.16 successfully executed the exact upstream
+GSI linker/libc/mksh builtin marker with capless UID65534, seccomp and complete
+cleanup. See the sanitized observation/profile; this is not Android/HAL boot.
+`tools/prepare_pd2425_apex.py` now prepares the pinned GSI's 36 APEX payloads
+(26 CAPEX), plus direct ELF dependency metadata, offline without mounting or
+executing image code. `profiles/pd2425-evox-apex.json` records the analyzed inputs.
+Manifest identity, AVB signatures and transitive dependency closure are not
+verified by this preparation tool, and no mount/launch authorization is emitted.

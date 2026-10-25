@@ -1,0 +1,861 @@
+{
+  "schema": 1,
+  "state": "offline-inputs-only",
+  "runtime_ready": false,
+  "image_sha256": "2a0bd888510fe3415fbdcebb719c2a99d32801f09ad001333e429f6ebc7e9d3e",
+  "module_count": 36,
+  "compressed_count": 26,
+  "modules": [
+    {
+      "package_filename": "com.android.adbd",
+      "source_name": "com.android.adbd.capex",
+      "source_bytes": 5488640,
+      "source_sha256": "860a78f00105b998d6693cf6345ec9351eb5c8f2d1c0409be8ee436c35027536",
+      "apex": {
+        "bytes": 11661312,
+        "sha256": "081e4d5858ee86bf15232474a5b360734490d0c21d5c4711893d47bdf3740234"
+      },
+      "payload": {
+        "bytes": 11366400,
+        "sha256": "49300fbe44fbca61689ba5f9f0c21676549dfa4fedbf0352952948d4386a990a",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 236,
+        "sha256": "cd524eb3cc0c3a4af5be0488d93161f1a6510649d7929fcc5ddb62f409798fb2"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.adservices",
+      "source_name": "com.android.adservices.capex",
+      "source_bytes": 9080832,
+      "source_sha256": "29b5c578922293f563878f58069833bf3f8a86a974030fbb8aa058fe15d4f003",
+      "apex": {
+        "bytes": 23490560,
+        "sha256": "9146a235f778bac15ca0b2005a52c43940e493938668d0f0adf995ebea8ec132"
+      },
+      "payload": {
+        "bytes": 23326720,
+        "sha256": "470f49ab46b08c556746ed2ee6cfce6db158e6f0cabe21cd8ee013aff0e57616",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 135,
+        "sha256": "602ae67a8480eff4e5dd75efa4eaf95d13ed1c2a32de2fc6558af24d5c68b599"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.apex.cts.shim",
+      "source_name": "com.android.apex.cts.shim.apex",
+      "source_bytes": 360448,
+      "source_sha256": "18451d0ac06a9532a0c75f2f89544a096ebb8b2a1b4ee7357b5747d972e60a42",
+      "apex": {
+        "bytes": 360448,
+        "sha256": "18451d0ac06a9532a0c75f2f89544a096ebb8b2a1b4ee7357b5747d972e60a42"
+      },
+      "payload": {
+        "bytes": 274432,
+        "sha256": "fb08e966a5fca9c872961586172e51bdc341e7ed43fa09073c6a87d841dcb05d",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 29,
+        "sha256": "8e5a4c86e680e0e96fc848f05b76e2422da1ac0ab9702167bfe1b4a0f34554b3"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.appsearch",
+      "source_name": "com.android.appsearch.capex",
+      "source_bytes": 1949696,
+      "source_sha256": "d88e8b658738e09972e17cbf7a693d27954e46e2801cab8e9a0d20cea25abb81",
+      "apex": {
+        "bytes": 4423680,
+        "sha256": "2019216b1b34003d33896eb9e4e015a24358572d1c6c8bf67f7e61c267c76b43"
+      },
+      "payload": {
+        "bytes": 4255744,
+        "sha256": "0406c984cbe99dcb793640c755f6e0dae4002d88d8a17f3a1bb51cb73636b108",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 143,
+        "sha256": "c29edf0af6df841a1e7afe2a97105b2a1783812c9caf59d0ee74fc73c3834385"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.art",
+      "source_name": "com.android.art.capex",
+      "source_bytes": 21307392,
+      "source_sha256": "c7613b695e1c667d86a8351b00749b5e5b9abaac101531c8cad17d49ea1384cc",
+      "apex": {
+        "bytes": 50499584,
+        "sha256": "ef22375b7d5f1e90890b8abfdd12f41de1a882388a7fd93253c75f355b22ac72"
+      },
+      "payload": {
+        "bytes": 50315264,
+        "sha256": "3a1c05e50dec05129f38e780ecf8eb9dac54718fd02a44a1c96c54c22960bba4",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 400,
+        "sha256": "b5d52139f0d1178de1a8f835b3055cc3ce5181e898254e1ceda163badca251a8"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.bt",
+      "source_name": "com.android.bt.capex",
+      "source_bytes": 10223616,
+      "source_sha256": "8af50019b8a98b20de6452dabd7418290bb64859ffa2f9f22240c574d5f497ac",
+      "apex": {
+        "bytes": 24219648,
+        "sha256": "bfceedca2407e840d9b07f01d9217f9e2ae2fae1fc54c1492a9dd025c8f24116"
+      },
+      "payload": {
+        "bytes": 24055808,
+        "sha256": "c6266d99add7bb25e513482ceac44b6a9a6fb7ccb4bfd26aed79fa470083404a",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 172,
+        "sha256": "2a90c2edd99dc7a8c285ef2906eea235a5ec53d0f73d01c8010649ea6c240ed7"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.cellbroadcast",
+      "source_name": "com.android.cellbroadcast.capex",
+      "source_bytes": 5754880,
+      "source_sha256": "e9dff5ca0e51c95e46c22e3859616378180d477cbc369384c5cc9541edac5dfc",
+      "apex": {
+        "bytes": 20856832,
+        "sha256": "b8dbe750b804d07321041eb164f9384856350663c2b25c2dd75ad71ef335b6cb"
+      },
+      "payload": {
+        "bytes": 20738048,
+        "sha256": "750066ad2af2c500beae58bc9dfea0c0556b4ee6e6d46dc84b14b2f742be14ba",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 33,
+        "sha256": "1b75c37974c92a6ef6c2f360e5c58bba64f81b33a99f8ab5b9e90e59172b7d73"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.configinfrastructure",
+      "source_name": "com.android.configinfrastructure.capex",
+      "source_bytes": 2527232,
+      "source_sha256": "3c53e19b0fa429ba3ebfea08f6bd7356877f2de79a3032596a28f036ea600cc6",
+      "apex": {
+        "bytes": 5771264,
+        "sha256": "bf4a4434fac02a53b3832863d55ed18bfca28e9e588cd83b14f6973550f3148e"
+      },
+      "payload": {
+        "bytes": 5632000,
+        "sha256": "9ec4487a6f4f43d3e3f7dfca919a2ff9ea7491438d48ddde949440b6c48b72b6",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 79,
+        "sha256": "01babf200e37d7c08e5ad3630bd82b5db280df25861c3a3d47699f26b0690cf1"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.conscrypt",
+      "source_name": "com.android.conscrypt.capex",
+      "source_bytes": 3510272,
+      "source_sha256": "fc49b70a99120655f3eeed637fc66c5fc83b65f5a90e3f219728ebc6ddcf5fc4",
+      "apex": {
+        "bytes": 7913472,
+        "sha256": "29dc04738ab08b3dd8a368151ffed5abb310cc6c35053c5471234bb9f62c1853"
+      },
+      "payload": {
+        "bytes": 7802880,
+        "sha256": "39f6818892764b5d856a99ab2fbdeb80f8d81e424a005a127e873712f8ccb877",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 103,
+        "sha256": "f2f185fd37ea2f729a598a222a2b613532b955c2fc6074b9774c61593066d10d"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.crashrecovery",
+      "source_name": "com.android.crashrecovery.capex",
+      "source_bytes": 233472,
+      "source_sha256": "3c940da8a9594bd0f534f3f24597e115625a63b661122b93d27b2b790072be67",
+      "apex": {
+        "bytes": 495616,
+        "sha256": "28337e77325e3c05ffbe778605af8717409516a67be9701ba7498e74eb765080"
+      },
+      "payload": {
+        "bytes": 393216,
+        "sha256": "d2e64ccd086a1c644bd018cdf3b1997905349c8885a4ba11372536fddc0606c2",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 33,
+        "sha256": "490713692b41d270f6bb8961f374d7e206abdc56d10fa82ceadb5adec468d89e"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.devicelock",
+      "source_name": "com.android.devicelock.apex",
+      "source_bytes": 6209536,
+      "source_sha256": "b7e1435dcfb0461b9820ac5e7511ded2db0b97aa8928ad33d11a1e06fb9260c5",
+      "apex": {
+        "bytes": 6209536,
+        "sha256": "b7e1435dcfb0461b9820ac5e7511ded2db0b97aa8928ad33d11a1e06fb9260c5"
+      },
+      "payload": {
+        "bytes": 6090752,
+        "sha256": "c6bd23dfc01a2a27d69bfff28a1f8e4fc4355b93048f1178e0a058a2c7e924f8",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 26,
+        "sha256": "71dd20bcde66cdfe5b96cdbf8c93b752352ab09e2d9c2bb309360d9870c32d85"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.extservices",
+      "source_name": "com.android.extservices.capex",
+      "source_bytes": 10420224,
+      "source_sha256": "19f2302b55417a278c0d4eb8ac87b0545f8da720d2ac4075b3a58e4451eda2d5",
+      "apex": {
+        "bytes": 25894912,
+        "sha256": "8b0fd1a006e8694813aadd5b0d0941179c2df0ca051f8bc8b1992753dc230e21"
+      },
+      "payload": {
+        "bytes": 25735168,
+        "sha256": "5112fdead36e735ceba98b89b953412b8490260cc5e8b77ed8d4e5e8590a417a",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 120,
+        "sha256": "874bd81c226a61e26b805c1687f4eebca560351654b7bb5c55edcdaa03ff3b9a"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.healthfitness",
+      "source_name": "com.android.healthfitness.apex",
+      "source_bytes": 15962112,
+      "source_sha256": "a838a39be9f5d973bbce5729b9ae909f00db5eb5fe93499f13a80f7c7759deb6",
+      "apex": {
+        "bytes": 15962112,
+        "sha256": "a838a39be9f5d973bbce5729b9ae909f00db5eb5fe93499f13a80f7c7759deb6"
+      },
+      "payload": {
+        "bytes": 15839232,
+        "sha256": "6274f2c5a20f17b61e11958fc7fd48189570004634f98bf8190c8b4db651bd21",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 33,
+        "sha256": "80db889808353d1c4214b8bd5b73193c9b52bb8bbf1a43ae16cf1724bfd3efeb"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.i18n",
+      "source_name": "com.android.i18n.apex",
+      "source_bytes": 40816640,
+      "source_sha256": "3f952d050fc82116c5c096db8cb5c742f54072dca32bd1147ce42c5c2eef8eb9",
+      "apex": {
+        "bytes": 40816640,
+        "sha256": "3f952d050fc82116c5c096db8cb5c742f54072dca32bd1147ce42c5c2eef8eb9"
+      },
+      "payload": {
+        "bytes": 40714240,
+        "sha256": "92c623c90df139ec7efaa8dd8d0958478516699f4680f3af2a35beb081a1b291",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 151,
+        "sha256": "b3f750cc2e929d6a665f734411052cce2b035780d2e8539fb0df5d7b681cbf58"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.ipsec",
+      "source_name": "com.android.ipsec.capex",
+      "source_bytes": 401408,
+      "source_sha256": "27faf9b37c29bd41614058651a282bbfffac16c15f8024aa715f70c6b098224f",
+      "apex": {
+        "bytes": 942080,
+        "sha256": "08022e7c7f10b15b8ee23c084abf0f2adb940221b605c1b1de05ea0e41a44ecd"
+      },
+      "payload": {
+        "bytes": 847872,
+        "sha256": "283f975a4ab2c3ad56a17d8d9c2d0bdb7da46b8bbf4ab1a09769ebc332587677",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 25,
+        "sha256": "43c3f5662db0003948576dddf643c267083fdd3f9dd45579c91c7edc858754f7"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.media",
+      "source_name": "com.android.media.capex",
+      "source_bytes": 3280896,
+      "source_sha256": "2a3e2ac5e2bd736880f3ddde2f06879662206b23cea728c18ccc45aa90327296",
+      "apex": {
+        "bytes": 7634944,
+        "sha256": "523afe4cd8a4551de9702198cf8e6b04d61cef3e5406e8b012ffa70ff4bf361f"
+      },
+      "payload": {
+        "bytes": 7376896,
+        "sha256": "d259b6586774858be0f20b0121f7bc16840ccb8bcd62c09687de2bf75112a680",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 248,
+        "sha256": "33008bef690e7f6564d5281fec4b7894759d49cae6ddfa692c78ef4abcfacfe2"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.media.swcodec",
+      "source_name": "com.android.media.swcodec.capex",
+      "source_bytes": 13443072,
+      "source_sha256": "927a2f16a101401ec1cd025830cfbbac02f6c6b55ffa2ecc34d9276f6acbce54",
+      "apex": {
+        "bytes": 30654464,
+        "sha256": "1753809438fbd4b1ff4d4a5382b8c76ba6f2c592deb4878d2a8cbb229a591c3f"
+      },
+      "payload": {
+        "bytes": 30507008,
+        "sha256": "31115fecc9e24d6366fec2426246820b6d1a21271fb532c9978d8929982fec17",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 209,
+        "sha256": "37d7a96a5b1572f513b61b0896153ed397fab807ca16b99e3cf3c1721da6969a"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.mediaprovider",
+      "source_name": "com.android.mediaprovider.capex",
+      "source_bytes": 15208448,
+      "source_sha256": "576e423034b87fe07a90325fa6d92a121edc0b857e8101e0dc8847720178098c",
+      "apex": {
+        "bytes": 33492992,
+        "sha256": "001733c044201fd0cf4979c7717f272c2bb18f6d0e65fdaabadd3819a6d33eb8"
+      },
+      "payload": {
+        "bytes": 33255424,
+        "sha256": "ec7b6cd075f0fbb854cc472c864feb04b65fb7cd525239f95f17c393b28fdf4a",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 128,
+        "sha256": "a67b4a36fc27f744ac32a2afd819c6a99b1ae4c1259db6142b6a4101f356f2f6"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.neuralnetworks",
+      "source_name": "com.android.neuralnetworks.capex",
+      "source_bytes": 4034560,
+      "source_sha256": "65ea4484ef831c5af1fa901df46ad9ab8e2b6253799cbb3be519513b380d15c3",
+      "apex": {
+        "bytes": 8388608,
+        "sha256": "20b97b4500e867d0d1ca86dbb3a12f53b696299dd1702c7e46e887d4cc2f19a0"
+      },
+      "payload": {
+        "bytes": 8278016,
+        "sha256": "5cfddbc4d644d7ed3e28895a096d21d23712eef28b72d35c921d0a3f461df2e4",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 205,
+        "sha256": "c406e38adcb866a13a58ea1921bfaaa7f5ac7df5d9eb4b9385e167583c579162"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.nfcservices",
+      "source_name": "com.android.nfcservices.capex",
+      "source_bytes": 4128768,
+      "source_sha256": "630d8dbada4b65c8d263ff0e3577e64d095b51a1085a31ac013531b6db99e08d",
+      "apex": {
+        "bytes": 10211328,
+        "sha256": "bd7afa30dc9cc1a5c1e4ae6b56e22f9d6cfd041c70078b2b60dbde5c762cfeaa"
+      },
+      "payload": {
+        "bytes": 10047488,
+        "sha256": "d5626fc55f4031a186cbf77e2a35f9efe08dc95c30f577fcd2c00576b5cd2d2b",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 174,
+        "sha256": "99043b6266e47dc11ebb3bf390430c9e52efcc134c69d04deecb8d7dd815abaa"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.ondevicepersonalization",
+      "source_name": "com.android.ondevicepersonalization.capex",
+      "source_bytes": 6488064,
+      "source_sha256": "006796ce1196390e024ddb2e76837000cfcb551853bdf4829154392196e2336d",
+      "apex": {
+        "bytes": 14659584,
+        "sha256": "51d53d89e5394b261ccec72cdfc70d68c216602f484b108c84b4e6b25b5f62e4"
+      },
+      "payload": {
+        "bytes": 14491648,
+        "sha256": "081d9f7d0d6961195a1964d998a66e0a60afae6fc136ae5a27020aefad2ccbc8",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 125,
+        "sha256": "4654f8eb8748f5027fc77859892b2e7869eb428e984206a3d31b82849dc92fda"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.os.statsd",
+      "source_name": "com.android.os.statsd.apex",
+      "source_bytes": 3604480,
+      "source_sha256": "9c6a593f274487a6d921da294b7d2f07b0625e05ab4724743ca05398effba36d",
+      "apex": {
+        "bytes": 3604480,
+        "sha256": "9c6a593f274487a6d921da294b7d2f07b0625e05ab4724743ca05398effba36d"
+      },
+      "payload": {
+        "bytes": 3432448,
+        "sha256": "69ea399f5faa8ff875b0d814d9bf602778b3bbdce3a42c84f9f9c37afcb0d4af",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 181,
+        "sha256": "8093e935a84c83513ad1924bc40c4d4d83431f3f379190fcb895c040eda42e0d"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.permission",
+      "source_name": "com.android.permission.capex",
+      "source_bytes": 8978432,
+      "source_sha256": "4605bff626373f10bf3e5aa37b71814a4aa76ef7cf00ad25ad4801aeb8e8b56c",
+      "apex": {
+        "bytes": 28037120,
+        "sha256": "2143d7cc800efd5ef7f9ff240041f1e2b479c284e478dea741fdeca58437def8"
+      },
+      "payload": {
+        "bytes": 27918336,
+        "sha256": "28fb63ef03d9449a3f39fde0b1e5da5bc2005cfe3bbbf43c569e885a1f92a63b",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 30,
+        "sha256": "e4610bab664102d4589b5a02e57135e0d8d2c9e34cf3e0e8715c88dcd81a42fe"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.profiling",
+      "source_name": "com.android.profiling.capex",
+      "source_bytes": 839680,
+      "source_sha256": "d23496949d073c286e301fb1ca9b6d79dfb37b0906aa675c4c8f1962a4933b74",
+      "apex": {
+        "bytes": 2121728,
+        "sha256": "ea4bd2c684c3eda2f484b77f88b04000b0c37ccb39a40c6ff3d796e60f71e16c"
+      },
+      "payload": {
+        "bytes": 1970176,
+        "sha256": "4ed62429ef1198883e06317f93c9e32685355660a27683abc58c3bfc9fc994a1",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 77,
+        "sha256": "3d01a688000fcc781121b6f2fb3db4fc2c089b4447051d7dd4a8ee032dcccb28"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.resolv",
+      "source_name": "com.android.resolv.capex",
+      "source_bytes": 2424832,
+      "source_sha256": "57d9a3c0bb97389e5a8cb294b12673293da8021a208f5c51b86a9dd5c7a43058",
+      "apex": {
+        "bytes": 5230592,
+        "sha256": "7b48b7a3e6f1dcb50d9496bdbe0f09fc6caec81c4088b160655e781e04220472"
+      },
+      "payload": {
+        "bytes": 5128192,
+        "sha256": "546340e30a69c9db757032a07ac4cddfc16ded23de0f74adf88e9c5e199eee4f",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 161,
+        "sha256": "3f67f1fb5f55b2f66cd4461d7e57d8db1cd618ba6998c058b25d4b5c308167bd"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.rkpd",
+      "source_name": "com.android.rkpd.apex",
+      "source_bytes": 1523712,
+      "source_sha256": "da5ff3e143a6df7c27f3b162b786e9541c30eb20d6ebae5881ba515e3320dc3c",
+      "apex": {
+        "bytes": 1523712,
+        "sha256": "da5ff3e143a6df7c27f3b162b786e9541c30eb20d6ebae5881ba515e3320dc3c"
+      },
+      "payload": {
+        "bytes": 1404928,
+        "sha256": "3601aa0372d4684264139fbbf076e24a1384ec8d8ae3055b6bc339af816620c6",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 24,
+        "sha256": "9366f2b32a1a2f820f9589cec4d0fbe22d574af56392a377f918ac72aab94953"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.runtime",
+      "source_name": "com.android.runtime.apex",
+      "source_bytes": 12939264,
+      "source_sha256": "7d4cb81f13e71289681148b610dff0e8f234d780640ac452367e3776704390c8",
+      "apex": {
+        "bytes": 12939264,
+        "sha256": "7d4cb81f13e71289681148b610dff0e8f234d780640ac452367e3776704390c8"
+      },
+      "payload": {
+        "bytes": 12849152,
+        "sha256": "523bda4f34a453d0df9538197c1139d4b3a7f88b26217f80255f92fb5a6e0e3f",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 143,
+        "sha256": "48e74bbf3dead7386e9a16ba8ff51cd9983c5d5ab6973bb7fb8c445a9653d0d9"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.scheduling",
+      "source_name": "com.android.scheduling.capex",
+      "source_bytes": 147456,
+      "source_sha256": "f78f1bfe1c7470da5fff7b2f28d504c5d3d6a1d846bc0a56200a0feace2233f2",
+      "apex": {
+        "bytes": 376832,
+        "sha256": "7ad37c433b9a712443e269668aff5f45d19e82fcf2ed0ef47cb18f4a34b2f700"
+      },
+      "payload": {
+        "bytes": 274432,
+        "sha256": "fc4155e5253f99dd337d347485f96a572cb702feb252a3337e905f435636c149",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 30,
+        "sha256": "20f84dc1f42e6aaa93b3fadf04aa78c427fcf1563e9de9349e59a2fbeb7d8c62"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.sdkext",
+      "source_name": "com.android.sdkext.apex",
+      "source_bytes": 1253376,
+      "source_sha256": "8ebe2e7bfd1b54161469731d6cc74cd2452e95839a8a9572e41cb8c375aa43bb",
+      "apex": {
+        "bytes": 1253376,
+        "sha256": "8ebe2e7bfd1b54161469731d6cc74cd2452e95839a8a9572e41cb8c375aa43bb"
+      },
+      "payload": {
+        "bytes": 1159168,
+        "sha256": "3e8949cd515bd041840cafd87792a6eaf348473cbb311737ed4a63b3f2f1b529",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 65,
+        "sha256": "f0dc4a563444be431f27f2bf1ded63b8d1dd5180cc8577df65452f311c976cde"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.telephonycore",
+      "source_name": "com.android.telephonycore.capex",
+      "source_bytes": 323584,
+      "source_sha256": "be2fdaa69e2dc8e4aa948642c3297aef854ce35c06e2ec270b542c281fb44a90",
+      "apex": {
+        "bytes": 663552,
+        "sha256": "1960373ddcce2db5f3765297dbd048239367a30574a6adb19574c108478547cf"
+      },
+      "payload": {
+        "bytes": 569344,
+        "sha256": "2b513a0e1609ef0ac8736fbbbfd500162aa978851b566dfc558657d498530b8b",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 33,
+        "sha256": "a0fcb8c9bb72283450c0a808f084c8eb2154c05be3f9232047df3c6af2d7eddc"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.tethering",
+      "source_name": "com.android.tethering.capex",
+      "source_bytes": 14336000,
+      "source_sha256": "3ac8f454d24ade82d2c8e5e05ce8ee4382c29bfe2e0af352b6fa033e2edc387b",
+      "apex": {
+        "bytes": 29642752,
+        "sha256": "dad7acb42e5f55457ec8cf59f1284748d5cb6a010f02bee2ed5de0d07a8a6f17"
+      },
+      "payload": {
+        "bytes": 29384704,
+        "sha256": "15b32cb033bd2411225e3169389fef996845f838e34a1b71a5ca08a0d9ea5a93",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 664,
+        "sha256": "b96907756fe8ef345518fc0cee2b7d67a74c16df81a8892eb02acd2cccf7dc09"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.tzdata",
+      "source_name": "com.android.tzdata.apex",
+      "source_bytes": 909312,
+      "source_sha256": "6b4e7d48bfbffc19ec8786785fd0b673f86f58765bebc66be3b5f593d4b0d801",
+      "apex": {
+        "bytes": 909312,
+        "sha256": "6b4e7d48bfbffc19ec8786785fd0b673f86f58765bebc66be3b5f593d4b0d801"
+      },
+      "payload": {
+        "bytes": 856064,
+        "sha256": "35b2885d2f13a73ae436800faa5df2bb93b914dcedee87b927ec154ba4183cb7",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 26,
+        "sha256": "a246a6a0b9058dd79e7a19c391d7bb7391c04ef4d8809471df4f9fc854384fda"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.uprobestats",
+      "source_name": "com.android.uprobestats.capex",
+      "source_bytes": 1552384,
+      "source_sha256": "73b6e3175717b28a2488f66130ab10169f3847dce16c02f8135c46c1b4f73007",
+      "apex": {
+        "bytes": 3780608,
+        "sha256": "c60c93630731d9aa2d776129653b9e977f2d8587522fc17aece4862000401cff"
+      },
+      "payload": {
+        "bytes": 3612672,
+        "sha256": "7c365071a21023c7ec5d835b7d5596ea9eaa62385bd13bc8b489e43f92753ea1",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 165,
+        "sha256": "fc2d85ee7453f4158210bb0280a2c9a81741812f423db6aff89bad4c4161bed3"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.uwb",
+      "source_name": "com.android.uwb.capex",
+      "source_bytes": 2936832,
+      "source_sha256": "d89995019840721cbde9b9f717f68e0d721dd7e4895fdb7cc7ba0b1fa18d7a20",
+      "apex": {
+        "bytes": 7389184,
+        "sha256": "eb8a9af0c44249bdad3b6d2a8465310a6b8f2b4b01ea39e07fc37eed0f18ee3d"
+      },
+      "payload": {
+        "bytes": 7225344,
+        "sha256": "7e83e80b9058df9b16dcfa87e0a5d6000c68315078d01c741a1de076a7efdafa",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 104,
+        "sha256": "6bc39cdac4121193d61221eb1f766699f241bb426a0e55dea144f61b13659599"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.virt",
+      "source_name": "com.android.virt.apex",
+      "source_bytes": 99057664,
+      "source_sha256": "fa172ccccd4b01a4d726278ec130e202e07f56aa98bc51d716f134616e53aa27",
+      "apex": {
+        "bytes": 99057664,
+        "sha256": "fa172ccccd4b01a4d726278ec130e202e07f56aa98bc51d716f134616e53aa27"
+      },
+      "payload": {
+        "bytes": 98824192,
+        "sha256": "b5375119aaaf88a47d9a5219c066f457fd79c346461951a5b5000716fd914b66",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 370,
+        "sha256": "10e0d8490e116d123c3b97bd956ab3a5c22d8e4184b79e204dff4e5f49aec5cc"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    },
+    {
+      "package_filename": "com.android.wifi",
+      "source_name": "com.android.wifi.capex",
+      "source_bytes": 3895296,
+      "source_sha256": "21f6cb086f3ecb194770dc21978a25e9e2758fbdfe09cf03296117a9e22ac299",
+      "apex": {
+        "bytes": 11063296,
+        "sha256": "9ea4837bf4b364a5a444171505e209b79d45211b583c1f447a36ccc027a05c02"
+      },
+      "payload": {
+        "bytes": 10907648,
+        "sha256": "e257666ebf47be154b577fdbd325362ddeb4533c0b5779297dddcc2ebac8f2aa",
+        "filesystem": "ext4"
+      },
+      "manifest": {
+        "bytes": 94,
+        "sha256": "2be4f352b93bda691f7e4a725dd39e328148bd3ce46838ad5e0e81db16eb56fa"
+      },
+      "manifest_identity_verified": false,
+      "avb_signature_verified": false
+    }
+  ],
+  "programs": [
+    {
+      "path": "/apex/com.android.runtime/bin/linkerconfig",
+      "source_path": "/bin/linkerconfig",
+      "source_module": "com.android.runtime",
+      "bytes": 463264,
+      "sha256": "df89208ee5fc5f142298d7cce4a2c608bfa380788abee49ddb0538c649557a69",
+      "direct_needed": [
+        "libbase.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ],
+      "executed": false,
+      "dependency_closure_verified": false
+    },
+    {
+      "path": "/system/bin/servicemanager",
+      "source_path": "/system/bin/servicemanager",
+      "source_module": null,
+      "bytes": 137200,
+      "sha256": "ef21886c18824a1121048c32b1d068499d013dee74f0026799955ad236c0ad3c",
+      "direct_needed": [
+        "libbase.so",
+        "libvintf.so",
+        "libcutils.so",
+        "liblog.so",
+        "libselinux.so",
+        "libperfetto_c.so",
+        "libbinder.so",
+        "libutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ],
+      "executed": false,
+      "dependency_closure_verified": false
+    },
+    {
+      "path": "/system/bin/hwservicemanager",
+      "source_path": "/system/system_ext/bin/hwservicemanager",
+      "source_module": null,
+      "bytes": 120312,
+      "sha256": "94fcf5bcb74be728685b43daf083f69cb7ec642233a71d423b9363c0ac99d1c9",
+      "direct_needed": [
+        "android.hidl.token@1.0.so",
+        "libcrypto.so",
+        "libbase.so",
+        "libhidl-gen-utils.so",
+        "libselinux.so",
+        "libutils.so",
+        "libvintf.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libcutils.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ],
+      "executed": false,
+      "dependency_closure_verified": false
+    },
+    {
+      "path": "/system/bin/app_process64",
+      "source_path": "/system/bin/app_process64",
+      "source_module": null,
+      "bytes": 51768,
+      "sha256": "1842b958a3901cdeec3a45c8350834de5767bdf7c96fd665c2294a64c60d8bb9",
+      "direct_needed": [
+        "libandroid_runtime.so",
+        "libbinder.so",
+        "libcutils.so",
+        "libhidlbase.so",
+        "liblog.so",
+        "libnativeloader.so",
+        "libsigchain.so",
+        "libutils.so",
+        "libwilhelm.so",
+        "libc++.so",
+        "libc.so",
+        "libm.so",
+        "libdl.so"
+      ],
+      "executed": false,
+      "dependency_closure_verified": false
+    }
+  ],
+  "limitations": [
+    "No AVB signature verification or module manifest identity parsing",
+    "No mounts, GSI code execution, Binder/HAL or Android bootstrap",
+    "Direct DT_NEEDED only; no transitive closure or classpath verification"
+  ]
+}

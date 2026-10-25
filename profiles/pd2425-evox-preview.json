@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "state": "owner-device-shell-entered-marker-pending",
+  "state": "owner-device-preview-passed",
   "mode": "headless-linker-shell",
   "full_android_boot": false,
   "hot_restore_required": false,
@@ -30,6 +30,8 @@
   "policy": "preview default-deny seccomp; no fork/network/privilege/loop/ioctl in guest",
   "writes": "no partition or source-image writes; transient private mounts/loop attachments only",
   "archive_bytes": 1160507536,
-  "linker_observation_sha256": "4cae76b58bf599896d4b68d70cd961b63fa888896763eb64b4e4c6e31d634728",
-  "shell_observation_sha256": "4cae76b58bf599896d4b68d70cd961b63fa888896763eb64b4e4c6e31d634728"
+  "linker_observation_sha256": "c9892ad3cc06d9bd4842a4514298b037be2087ca106a893d3367ea5511c9de4e",
+  "shell_observation_sha256": "c9892ad3cc06d9bd4842a4514298b037be2087ca106a893d3367ea5511c9de4e",
+  "observed_preview_passed": true,
+  "apex_catalog": "profiles/pd2425-evox-apex.json"
 }
