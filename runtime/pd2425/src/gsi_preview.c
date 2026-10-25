@@ -61,7 +61,10 @@ static void pv_worker(int image,int metadata,int output,int owner_fd,const char 
     /* The root and runtime are immutable mounts. No host /proc, /sys, /dev or
        data is bound. The image's empty mountpoints remain empty/read-only. */
     PV_STEP(9,fchdir(root));PV_STEP(9,chroot("."));PV_STEP(9,chdir("/"));
-    PV_STEP(10,pv_limit(RLIMIT_CORE,0));PV_STEP(10,pv_limit(RLIMIT_CPU,5));PV_STEP(10,pv_limit(RLIMIT_AS,256*1024*1024));PV_STEP(10,pv_limit(RLIMIT_NPROC,0));
+    PV_STEP(10,pv_limit(RLIMIT_CORE,0));PV_STEP(10,pv_limit(RLIMIT_CPU,5));/* Android Scudo reserves several GiB of VA without committing that RAM.
+       A tiny AS limit breaks libc before main. Fork is denied by seccomp;
+       NPROC=0 would also make exec fail after the UID transition. */
+    PV_STEP(10,pv_limit(RLIMIT_AS,(rlim_t)64*1024*1024*1024));
     PV_STEP(10,prctl(PR_CAP_AMBIENT,PR_CAP_AMBIENT_CLEAR_ALL,0,0,0));PV_STEP(10,setgroups(0,NULL));PV_STEP(10,setresgid(65534,65534,65534));PV_STEP(10,setresuid(65534,65534,65534));
     struct __user_cap_header_struct caph={.version=_LINUX_CAPABILITY_VERSION_3,.pid=0};struct __user_cap_data_struct capd[2]={{0}};PV_STEP(10,(int)syscall(SYS_capset,&caph,capd));
     r.uid=getuid();r.gid=getgid();r.caps_zero=pv_zero_caps();if(r.uid!=65534||r.gid!=65534||!r.caps_zero){r.error=EPERM;goto failed;}
