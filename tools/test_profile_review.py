@@ -97,3 +97,10 @@ r['self_tests']={'gsi_preview':pv};assert review(r,p)['gsi_shell_preview_passed'
 for field,value in [('guest_uid',0),('capabilities_zero',False),('filter_verified',0),('image_sha256','different'),('loops_released',False),('output',''),('guest_boot_complete',True)]:
     bad=copy.deepcopy(r);bad['self_tests']['gsi_preview'][field]=value;assert not review(bad,p)['gsi_shell_preview_passed']
 print('PASS: GSI preview proof requires exact upstream image, capless UID, exec result, filter, parent and loop cleanup; never full boot')
+
+service=copy.deepcopy(pv);service.update(component='service-loader-preview',target='/system/bin/servicemanager',service_main_executed=False,linkerconfig_readonly=True,bootstrap_linkerconfig_sha256=pin['service_loader_preview']['bootstrap_linkerconfig_sha256'],output='libbinder.so => /system/lib64/libbinder.so\nlibc.so => /apex/com.android.runtime/lib64/bionic/libc.so\n')
+r['self_tests']={'service_loader':service}
+assert review(r,p)['service_loader_passed'] and not review(r,p)['runtime_ready'] and not review(r,p)['gsi_shell_preview_passed']
+for field,value in [('target','/system/bin/sh'),('linkerconfig_readonly',False),('service_main_executed',True),('bootstrap_linkerconfig_sha256','wrong'),('parent_unchanged',False),('exit_code',1),('output',''),('component','gsi-preview')]:
+ bad=copy.deepcopy(r);bad['self_tests']['service_loader'][field]=value;assert not review(bad,p)['service_loader_passed']
+print('PASS: service loader binds target, read-only config digest, capless setup and cleanup; never service main or Android readiness')

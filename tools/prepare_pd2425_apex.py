@@ -2,6 +2,7 @@
 import argparse, hashlib, json, os, re, stat, subprocess, tempfile, zipfile
 from pathlib import Path
 from fetch_preview_gsi import digest
+from apex_manifest import check_identity
 
 ROOT = Path(__file__).resolve().parents[1]
 LIMIT = 512 * 1024 * 1024
@@ -44,8 +45,12 @@ def unpack(source, name, output, budget=TOTAL_LIMIT):
     if not MODULE.fullmatch(name): raise ValueError('Invalid APEX filename')
     output = Path(output); package = name.rsplit('.', 1)[0]
     apex = output / (package + '.apex')
+    outer_manifest = None
     with zipfile.ZipFile(source) as z:
         if name.endswith('.capex'):
+            outer_path = output / (package + '.capex.manifest.pb')
+            member(z, 'apex_manifest.pb', outer_path, 65536)
+            outer_manifest = check_identity(outer_path.read_bytes(), package)
             apex_info = member(z, 'original_apex', apex, min(LIMIT, budget))
         else:
             # Source came from an exclusive temporary dump; retain the exact package.
@@ -57,11 +62,16 @@ def unpack(source, name, output, budget=TOTAL_LIMIT):
     with zipfile.ZipFile(apex) as z:
         payload_info = member(z, 'apex_payload.img', payload, min(LIMIT, budget - apex_info['bytes']))
         manifest_info = member(z, 'apex_manifest.pb', manifest, 65536)
+    identity = check_identity(manifest.read_bytes(), package)
+    if outer_manifest is not None and identity != outer_manifest:
+        raise ValueError('CAPEX/original APEX manifest mismatch')
     return {'package_filename': package, 'source_name': name,
             'source_bytes': Path(source).stat().st_size, 'source_sha256': digest(source),
             'apex': apex_info, 'payload': dict(payload_info, filesystem=filesystem(payload)),
             'manifest': manifest_info,
-            'manifest_identity_verified': False, 'avb_signature_verified': False}
+            'manifest_identity_verified': True, 'manifest_identity': identity,
+            'capex_identity_verified': outer_manifest is not None,
+            'payload_manifest_verified': False, 'avb_signature_verified': False}
 
 def listing(text):
     result = []
@@ -127,7 +137,12 @@ def prepare(image, output, pin):
                 source = work / 'container'
                 debugfs(fd, 'dump /system/apex/' + name + ' container', work, reference)
                 if source.stat().st_size != size: raise ValueError('Dump size mismatch')
-                row = unpack(source, name, output, TOTAL_LIMIT - total); modules.append(row)
+                row = unpack(source, name, output, TOTAL_LIMIT - total)
+                if row['payload']['filesystem'] != 'ext4': raise ValueError('Payload manifest verification requires ext4')
+                payload_manifest = work / 'payload-manifest'
+                debugfs(fd, 'dump /apex_manifest.pb payload-manifest', work, output / (row['package_filename'] + '.img'))
+                if digest(payload_manifest) != row['manifest']['sha256']: raise ValueError('Payload/ZIP manifest mismatch')
+                row['payload_manifest_verified'] = True; payload_manifest.unlink(); modules.append(row)
                 total += row['apex']['bytes'] + row['payload']['bytes']
                 if total > TOTAL_LIMIT: raise ValueError('Total APEX output limit exceeded')
                 source.unlink()
@@ -158,7 +173,7 @@ def prepare(image, output, pin):
                    'image_sha256': pin['image_sha256'], 'module_count': len(modules),
                    'compressed_count': sum(n.endswith('.capex') for n, _ in rows),
                    'modules': modules, 'programs': programs,
-                   'limitations': ['No AVB signature verification or module manifest identity parsing',
+                   'limitations': ['No AVB signature verification',
                                    'No mounts, GSI code execution, Binder/HAL or Android bootstrap',
                                    'Direct DT_NEEDED only; no transitive closure or classpath verification']}
         with (output / 'catalog.json').open('x') as f: json.dump(catalog, f, indent=2); f.write('\n')

@@ -137,5 +137,12 @@ cleanup. See the sanitized observation/profile; this is not Android/HAL boot.
 `tools/prepare_pd2425_apex.py` now prepares the pinned GSI's 36 APEX payloads
 (26 CAPEX), plus direct ELF dependency metadata, offline without mounting or
 executing image code. `profiles/pd2425-evox-apex.json` records the analyzed inputs.
-Manifest identity, AVB signatures and transitive dependency closure are not
-verified by this preparation tool, and no mount/launch authorization is emitted.
+Manifest name/version and CAPEX/original/payload consistency are now verified.
+AVB signatures and transitive namespace compatibility remain unverified; no
+full mount/launch authorization is emitted.
+
+
+APK 0.1.17 adds `--preview-service-loader IMAGE`: a private readonly bootstrap
+linkerconfig plus GSI linker64 `--list /system/bin/servicemanager`. This is a
+loader test, not a running service manager. Existing capless/default-deny guards
+and shell mode remain; native main/PID/Binder/HAL bootstrap stays gated.

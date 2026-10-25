@@ -566,6 +566,14 @@
       "compressed_count": 26,
       "payload_bytes": 546861056,
       "scope": "CAPEX/APEX payload extraction and direct ELF dependencies on PC, no mounts or GSI execution",
+      "full_launch_authorization": false,
+      "manifest_identity_verified": true,
+      "payload_manifest_verified": true
+    },
+    "service_loader_preview": {
+      "state": "implemented-device-unvalidated",
+      "command": "--preview-service-loader IMAGE",
+      "scope": "GSI linker --list servicemanager with immutable private bootstrap linkerconfig; no service main/Binder/HAL",
       "full_launch_authorization": false
     }
   },

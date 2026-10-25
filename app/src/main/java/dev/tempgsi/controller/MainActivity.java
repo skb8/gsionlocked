@@ -91,6 +91,16 @@ public final class MainActivity extends Activity {
                     return "Результат запуска готов. Сохраните root-отчёт. Полный Android этим этапом не запускается.";
                 });
             }));
+            buttons.add(Ui.button(page,"Проверить библиотеки servicemanager",true,()->{
+                if(busy)return;
+                if(inside){status.setText("Проверяйте библиотеки из OriginOS.");return;}
+                pd2425Report=null;
+                if(selectedSha==null||selectedSha.isEmpty()){status.setText("Сначала импортируйте GSI.");return;}
+                task("Частный linkerconfig и проверка библиотек servicemanager; сам сервис не запускается…",()->{
+                    pd2425Report=Pd2425Diagnostics.collectServiceLoader(this,selectedSha);
+                    return "Проверка библиотек завершена. Сохраните root-отчёт. Сам сервис не запускался.";
+                });
+            }));
             buttons.add(Ui.button(page,"Root-отчёт PD2425",false,()->{
                 if(busy)return;
                 if(inside){status.setText("Собирайте отчёт в OriginOS.");return;}

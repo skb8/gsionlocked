@@ -100,6 +100,16 @@ def gsi_preview_ok(test,report):
     if not all(test.get(k) is True for k in ['preview_passed','prepared','capabilities_zero','namespaces_private','metadata_received','parent_unchanged','loops_released','temporary_directory_removed']):return False
     if any(type(test.get(k)) is not int or test[k]!=v for k,v in [('errno',0),('child_errno',0),('cleanup_errno',0),('spawned',1),('reaped',1),('exit_code',0),('signal',0),('guest_uid',65534),('guest_gid',65534),('no_new_privs',1),('filter_verified',5)]):return False
     return test.get('stage')=='complete' and test.get('child_stage')=='exec' and isinstance(test.get('output'),str) and 'PD2425_GSI_SHELL_OK\n' in test['output']
+def service_loader_ok(test,report):
+    if not isinstance(test,dict) or test.get('component')!='service-loader-preview' or test.get('schema')!=1 or test.get('runtime_ready') is not False or test.get('guest_boot_complete') is not False or test.get('host_services_changed') is not False:return False
+    a,b=report.get('boot_id',{}),test.get('boot_id',{})
+    if not isinstance(a,dict) or not isinstance(b,dict) or a.get('errno')!=0 or b.get('errno')!=0 or not a.get('value') or a.get('value')!=b.get('value') or test.get('fingerprint')!=report.get('fingerprint') or test.get('uid')!=0:return False
+    pin=json.loads((ROOT/'profiles/pd2425-evox-preview.json').read_text())
+    if test.get('image_sha256')!=pin['image_sha256']:return False
+    if not all(test.get(k) is True for k in ['preview_passed','prepared','capabilities_zero','namespaces_private','metadata_received','parent_unchanged','loops_released','temporary_directory_removed']):return False
+    if any(type(test.get(k)) is not int or test[k]!=v for k,v in [('errno',0),('child_errno',0),('cleanup_errno',0),('spawned',1),('reaped',1),('exit_code',0),('signal',0),('guest_uid',65534),('guest_gid',65534),('no_new_privs',1),('filter_verified',5)]):return False
+    expected=pin['service_loader_preview']
+    return (test.get('stage')=='complete' and test.get('child_stage')=='exec' and test.get('target')==expected['target'] and test.get('service_main_executed') is False and test.get('linkerconfig_readonly') is True and test.get('bootstrap_linkerconfig_sha256')==expected['bootstrap_linkerconfig_sha256'] and isinstance(test.get('output'),str) and 'libbinder.so' in test['output'] and 'libc.so' in test['output'])
 def review(report,profile):
     issues=[];observed=[]
     def issue(code,detail):issues.append({'code':code,'detail':detail})
@@ -198,9 +208,12 @@ def review(report,profile):
     if rftest is not None and not rootfs_pass:issue('rootfs_test_not_passed',str(rftest.get('stage',rftest.get('collection_error',rftest.get('not_run','incomplete result')))) if isinstance(rftest,dict) else 'invalid result')
     guard_pass=test_environment_ok and guard_test_ok(guardtest,report)
     if guardtest is not None and not guard_pass:issue('guard_test_not_passed',str(guardtest.get('stage',guardtest.get('collection_error',guardtest.get('not_run','incomplete result')))) if isinstance(guardtest,dict) else 'invalid result')
+    service=tests.get('service_loader') if isinstance(tests,dict) else None
+    service_pass=test_environment_ok and service_loader_ok(service,report)
+    if service is not None and not service_pass:issue('service_loader_not_passed',str(service.get('child_stage',service.get('stage','incomplete result'))) if isinstance(service,dict) else 'invalid result')
     preview_pass=test_environment_ok and gsi_preview_ok(preview,report)
     if preview is not None and not preview_pass:issue('gsi_preview_not_passed',str(preview.get('child_stage',preview.get('stage','incomplete result'))) if isinstance(preview,dict) else 'invalid result')
-    return {'schema':2,'runtime_ready':False,'host_profile_match':host_match,'ota_fingerprint_exact_match':ota_exact,'observation_checks_passed':not issues,'issues':issues,'observed_process_credentials':observed,'return_keys':selected_keys,'cgroup_kill_child_test_passed':bool(cgroup_pass or namespace_pass or bootstrap_pass or rootfs_pass or guard_pass),'namespace_test_passed':namespace_pass,'bootstrap_test_passed':bootstrap_pass,'rootfs_test_passed':bool(rootfs_pass or guard_pass),'syscall_guard_test_passed':guard_pass,'gsi_shell_preview_passed':preview_pass,'remaining_device_tests':REMAINING,'warning':'Observed identities and test results are not launch authorization. No service control is generated.'}
+    return {'schema':2,'runtime_ready':False,'host_profile_match':host_match,'ota_fingerprint_exact_match':ota_exact,'observation_checks_passed':not issues,'issues':issues,'observed_process_credentials':observed,'return_keys':selected_keys,'cgroup_kill_child_test_passed':bool(cgroup_pass or namespace_pass or bootstrap_pass or rootfs_pass or guard_pass),'namespace_test_passed':namespace_pass,'bootstrap_test_passed':bootstrap_pass,'rootfs_test_passed':bool(rootfs_pass or guard_pass),'syscall_guard_test_passed':guard_pass,'gsi_shell_preview_passed':preview_pass,'service_loader_passed':service_pass,'remaining_device_tests':REMAINING,'warning':'Observed identities and test results are not launch authorization. No service control is generated.'}
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('report',type=Path);p.add_argument('--output',type=Path);a=p.parse_args()
     result=review(json.loads(a.report.read_text()),json.loads((ROOT/'profiles/pd2425-originos6.json').read_text()))

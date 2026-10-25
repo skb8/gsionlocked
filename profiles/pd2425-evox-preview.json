@@ -33,5 +33,14 @@
   "linker_observation_sha256": "c9892ad3cc06d9bd4842a4514298b037be2087ca106a893d3367ea5511c9de4e",
   "shell_observation_sha256": "c9892ad3cc06d9bd4842a4514298b037be2087ca106a893d3367ea5511c9de4e",
   "observed_preview_passed": true,
-  "apex_catalog": "profiles/pd2425-evox-apex.json"
+  "apex_catalog": "profiles/pd2425-evox-apex.json",
+  "service_loader_preview": {
+    "state": "implemented-device-unvalidated",
+    "target": "/system/bin/servicemanager",
+    "mode": "linker64 --list",
+    "service_main_executed": false,
+    "bootstrap_linkerconfig_sha256": "0fe872a8d1f08e0eeaefe3ec691b039d36414f43c521b100900126c99eb5b547",
+    "requires_private_readonly_linkerconfig": true,
+    "full_android_boot": false
+  }
 }

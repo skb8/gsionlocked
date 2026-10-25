@@ -3,18 +3,22 @@ import hashlib, io, json, os, tempfile, zipfile
 from pathlib import Path
 from prepare_pd2425_apex import unpack, listing, member, prepare, validate_runtime
 
+MANIFEST = b'\x0a\x0fcom.android.art\x10\x01'
+
 def apex(payload):
     b = io.BytesIO()
     with zipfile.ZipFile(b, 'w') as z:
         z.writestr('apex_payload.img', payload)
-        z.writestr('apex_manifest.pb', b'manifest-fixture-not-verified')
+        z.writestr('apex_manifest.pb', MANIFEST)
         z.writestr('../../must-not-extract', b'bad')
     return b.getvalue()
 
 with tempfile.TemporaryDirectory() as temp:
     root = Path(temp); payload = bytearray(4096); payload[1080:1082] = b'\x53\xef'
     original = apex(payload); capex = root / 'input.capex'
-    with zipfile.ZipFile(capex, 'w') as z: z.writestr('original_apex', original, compress_type=zipfile.ZIP_DEFLATED)
+    with zipfile.ZipFile(capex, 'w') as z:
+        z.writestr('original_apex', original, compress_type=zipfile.ZIP_DEFLATED)
+        z.writestr('apex_manifest.pb', MANIFEST)
     out = root / 'out'; out.mkdir(); before = capex.read_bytes()
     c = unpack(capex, 'com.android.art.capex', out)
     assert c['payload']['filesystem'] == 'ext4' and c['payload']['sha256'] == hashlib.sha256(payload).hexdigest()
@@ -25,7 +29,7 @@ with tempfile.TemporaryDirectory() as temp:
     try: validate_runtime([runtime],pin)
     except ValueError: pass
     else: raise AssertionError('runtime pins mismatch accepted')
-    assert not c['avb_signature_verified'] and not c['manifest_identity_verified']
+    assert not c['avb_signature_verified'] and c['manifest_identity_verified']
     assert capex.read_bytes() == before and not (root / 'must-not-extract').exists()
     assert (out / 'com.android.art.apex').read_bytes() == original
     try: unpack(capex, '../escape.capex', out)
@@ -45,7 +49,7 @@ with tempfile.TemporaryDirectory() as temp:
     except ValueError: pass
     else: raise AssertionError('aggregate output budget ignored')
     assert not (budget_out / 'com.android.art.img').exists()
-    damaged = bytearray(original); offset = damaged.index(b'manifest-fixture-not-verified'); damaged[offset] ^= 1
+    damaged = bytearray(original); offset = damaged.index(b'com.android.art'); damaged[offset] ^= 1
     corrupt = root / 'corrupt.apex'; corrupt.write_bytes(damaged)
     crc_out = root / 'crc'; crc_out.mkdir()
     try: unpack(corrupt, 'com.android.art.apex', crc_out)

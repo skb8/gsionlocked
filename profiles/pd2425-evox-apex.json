@@ -24,7 +24,40 @@
         "bytes": 236,
         "sha256": "cd524eb3cc0c3a4af5be0488d93161f1a6510649d7929fcc5ddb62f409798fb2"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.adbd",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [
+          "libadb_pairing_auth.so",
+          "libadb_pairing_connection.so",
+          "libadb_pairing_server.so",
+          "libadbconnection_client.so"
+        ],
+        "require_native_libs": [
+          "libadbd_auth.so",
+          "libadbd_fs.so",
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libselinux.so"
+        ],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -45,7 +78,35 @@
         "bytes": 135,
         "sha256": "602ae67a8480eff4e5dd75efa4eaf95d13ed1c2a32de2fc6558af24d5c68b599"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.adservices",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libz.so"
+        ],
+        "jni_libs": [
+          "libhpke_jni.so",
+          "libtflite_support_classifiers_native.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -66,7 +127,26 @@
         "bytes": 29,
         "sha256": "8e5a4c86e680e0e96fc848f05b76e2422da1ac0ab9702167bfe1b4a0f34554b3"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.apex.cts.shim",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 1
+      },
+      "capex_identity_verified": false,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -87,7 +167,36 @@
         "bytes": 143,
         "sha256": "c29edf0af6df841a1e7afe2a97105b2a1783812c9caf59d0ee74fc73c3834385"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.appsearch",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "libicu.so",
+          "liblog.so",
+          "libm.so"
+        ],
+        "jni_libs": [
+          "libappsearchservice.so",
+          "libicing_anywhere.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -108,7 +217,52 @@
         "bytes": 400,
         "sha256": "b5d52139f0d1178de1a8f835b3055cc3ce5181e898254e1ceda163badca251a8"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.art",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [
+          "libjdwp.so",
+          "libandroidio.so",
+          "libdexfile.so",
+          "libnativebridge.so",
+          "libnativehelper.so",
+          "libnativeloader.so",
+          "libsigchain.so"
+        ],
+        "require_native_libs": [
+          "libicu_jni.so",
+          "heapprofd_client_api.so",
+          "libadbconnection_client.so",
+          "libartpalette-system.so",
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "libdl_android.so",
+          "libicu.so",
+          "liblog.so",
+          "libm.so",
+          "libselinux.so",
+          "libstatspull.so",
+          "libstatssocket.so",
+          "libz.so"
+        ],
+        "jni_libs": [
+          "libartservice.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -129,7 +283,38 @@
         "bytes": 172,
         "sha256": "2a90c2edd99dc7a8c285ef2906eea235a5ec53d0f73d01c8010649ea6c240ed7"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.bt",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libaaudio.so",
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libnativehelper.so",
+          "libstatssocket.so",
+          "libvndksupport.so"
+        ],
+        "jni_libs": [
+          "libbluetooth_jni.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -150,7 +335,26 @@
         "bytes": 33,
         "sha256": "1b75c37974c92a6ef6c2f360e5c58bba64f81b33a99f8ab5b9e90e59172b7d73"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.cellbroadcast",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -171,7 +375,31 @@
         "bytes": 79,
         "sha256": "01babf200e37d7c08e5ad3630bd82b5db280df25861c3a3d47699f26b0690cf1"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.configinfrastructure",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so"
+        ],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -192,7 +420,34 @@
         "bytes": 103,
         "sha256": "f2f185fd37ea2f729a598a222a2b613532b955c2fc6074b9774c61593066d10d"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.conscrypt",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libandroidio.so",
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so"
+        ],
+        "jni_libs": [
+          "libjavacrypto.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -213,7 +468,26 @@
         "bytes": 33,
         "sha256": "490713692b41d270f6bb8961f374d7e206abdc56d10fa82ceadb5adec468d89e"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.crashrecovery",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -234,7 +508,26 @@
         "bytes": 26,
         "sha256": "71dd20bcde66cdfe5b96cdbf8c93b752352ab09e2d9c2bb309360d9870c32d85"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.devicelock",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 1
+      },
+      "capex_identity_verified": false,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -255,7 +548,34 @@
         "bytes": 120,
         "sha256": "874bd81c226a61e26b805c1687f4eebca560351654b7bb5c55edcdaa03ff3b9a"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.extservices",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libz.so"
+        ],
+        "jni_libs": [
+          "libtflite_support_classifiers_native.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -276,7 +596,26 @@
         "bytes": 33,
         "sha256": "80db889808353d1c4214b8bd5b73193c9b52bb8bbf1a43ae16cf1724bfd3efeb"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.healthfitness",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": false,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -297,7 +636,38 @@
         "bytes": 151,
         "sha256": "b3f750cc2e929d6a665f734411052cce2b035780d2e8539fb0df5d7b681cbf58"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.i18n",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [
+          "libicui18n.so",
+          "libicuuc.so",
+          "libicu_jni.so",
+          "libandroidicu.so",
+          "libicu.so"
+        ],
+        "require_native_libs": [
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libnativehelper.so"
+        ],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 1
+      },
+      "capex_identity_verified": false,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -318,7 +688,26 @@
         "bytes": 25,
         "sha256": "43c3f5662db0003948576dddf643c267083fdd3f9dd45579c91c7edc858754f7"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.ipsec",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -339,7 +728,42 @@
         "bytes": 248,
         "sha256": "33008bef690e7f6564d5281fec4b7894759d49cae6ddfa692c78ef4abcfacfe2"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.media",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libandroid.so",
+          "libbinder_ndk.so",
+          "libmediandk.so",
+          ":sphal",
+          "libandroid.so",
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libmediametrics.so",
+          "libmediandk.so",
+          "libnativewindow.so",
+          "libstatssocket.so",
+          "libvndksupport.so"
+        ],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -360,7 +784,39 @@
         "bytes": 209,
         "sha256": "37d7a96a5b1572f513b61b0896153ed397fab807ca16b99e3cf3c1721da6969a"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.media.swcodec",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [
+          "libcom.android.media.swcodec.apexcodecs.so"
+        ],
+        "require_native_libs": [
+          ":sphal",
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libmediandk.so",
+          "libnativewindow.so",
+          "libsync.so",
+          "libvndksupport.so"
+        ],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -381,7 +837,36 @@
         "bytes": 128,
         "sha256": "a67b4a36fc27f744ac32a2afd819c6a99b1ae4c1259db6142b6a4101f356f2f6"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.mediaprovider",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libc.so",
+          "libdl.so",
+          "libicu.so",
+          "libjnigraphics.so",
+          "liblog.so",
+          "libm.so",
+          "libz.so"
+        ],
+        "jni_libs": [
+          "libpdfclient.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -402,7 +887,38 @@
         "bytes": 205,
         "sha256": "c406e38adcb866a13a58ea1921bfaaa7f5ac7df5d9eb4b9385e167583c579162"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.neuralnetworks",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [
+          "libneuralnetworks.so"
+        ],
+        "require_native_libs": [
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libnativewindow.so",
+          "libneuralnetworks_packageinfo.so",
+          "libstatssocket.so",
+          "libvndksupport.so"
+        ],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -423,7 +939,38 @@
         "bytes": 174,
         "sha256": "99043b6266e47dc11ebb3bf390430c9e52efcc134c69d04deecb8d7dd815abaa"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.nfcservices",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libnativehelper.so",
+          "libstatssocket.so",
+          "libvndksupport.so",
+          "libz.so"
+        ],
+        "jni_libs": [
+          "libnfc_nci_jni.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -444,7 +991,34 @@
         "bytes": 125,
         "sha256": "4654f8eb8748f5027fc77859892b2e7869eb428e984206a3d31b82849dc92fda"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.ondevicepersonalization",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so"
+        ],
+        "jni_libs": [
+          "libfcp_cpp_dep_jni.so",
+          "libfcp_hpke_jni.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -465,7 +1039,39 @@
         "bytes": 181,
         "sha256": "8093e935a84c83513ad1924bc40c4d4d83431f3f379190fcb895c040eda42e0d"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.os.statsd",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [
+          "libstatspull.so",
+          "libstatssocket.so"
+        ],
+        "require_native_libs": [
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "libincident.so",
+          "liblog.so",
+          "libm.so",
+          "libuprobestats_client.so"
+        ],
+        "jni_libs": [
+          "libstats_jni.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": false,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -486,7 +1092,26 @@
         "bytes": 30,
         "sha256": "e4610bab664102d4589b5a02e57135e0d8d2c9e34cf3e0e8715c88dcd81a42fe"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.permission",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -507,7 +1132,32 @@
         "bytes": 77,
         "sha256": "3d01a688000fcc781121b6f2fb3db4fc2c089b4447051d7dd4a8ee032dcccb28"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.profiling",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libz.so"
+        ],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -528,7 +1178,36 @@
         "bytes": 161,
         "sha256": "3f67f1fb5f55b2f66cd4461d7e57d8db1cd618ba6998c058b25d4b5c308167bd"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.resolv",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [
+          "libnetd_resolv.so"
+        ],
+        "require_native_libs": [
+          "libbinder_ndk.so",
+          "libc.so",
+          "libcom.android.tethering.dns_helper.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libstatssocket.so"
+        ],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -549,7 +1228,26 @@
         "bytes": 24,
         "sha256": "9366f2b32a1a2f820f9589cec4d0fbe22d574af56392a377f918ac72aab94953"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.rkpd",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": false,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -570,7 +1268,35 @@
         "bytes": 143,
         "sha256": "48e74bbf3dead7386e9a16ba8ff51cd9983c5d5ab6973bb7fb8c445a9653d0d9"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.runtime",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libc.so",
+          "libclang_rt.hwasan-aarch64-android.so",
+          "libdexfile.so",
+          "libdl.so",
+          "libdl_android.so",
+          "liblog.so",
+          "libm.so",
+          "libz.so"
+        ],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 1
+      },
+      "capex_identity_verified": false,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -591,7 +1317,26 @@
         "bytes": 30,
         "sha256": "20f84dc1f42e6aaa93b3fadf04aa78c427fcf1563e9de9349e59a2fbeb7d8c62"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.scheduling",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -612,7 +1357,31 @@
         "bytes": 65,
         "sha256": "f0dc4a563444be431f27f2bf1ded63b8d1dd5180cc8577df65452f311c976cde"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.sdkext",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so"
+        ],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": false,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -633,7 +1402,26 @@
         "bytes": 33,
         "sha256": "a0fcb8c9bb72283450c0a808f084c8eb2154c05be3f9232047df3c6af2d7eddc"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.telephonycore",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -654,7 +1442,52 @@
         "bytes": 664,
         "sha256": "b96907756fe8ef345518fc0cee2b7d67a74c16df81a8892eb02acd2cccf7dc09"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.tethering",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [
+          "libcom.android.tethering.connectivity_native.so",
+          "libcom.android.tethering.dns_helper.so",
+          "libnetd_updatable.so"
+        ],
+        "require_native_libs": [
+          "libandroid.so",
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libmediandk.so",
+          "libnativehelper.so",
+          "libstatssocket.so",
+          "libvndksupport.so",
+          "libz.so"
+        ],
+        "jni_libs": [
+          "libframework-connectivity-jni.so",
+          "libframework-connectivity-tiramisu-jni.so",
+          "libmainlinecronet.141.0.7340.3.so",
+          "stable_cronet_libcrypto.so",
+          "stable_cronet_libssl.so",
+          "libandroid_net_connectivity_com_android_net_module_util_jni.so",
+          "libandroid_net_connectivity_com_android_net_module_util_jni_CommonConnectivityJni.so",
+          "libservice-connectivity.so",
+          "libservice-thread-jni.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -675,7 +1508,26 @@
         "bytes": 26,
         "sha256": "a246a6a0b9058dd79e7a19c391d7bb7391c04ef4d8809471df4f9fc854384fda"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.tzdata",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": false,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -696,7 +1548,37 @@
         "bytes": 165,
         "sha256": "fc2d85ee7453f4158210bb0280a2c9a81741812f423db6aff89bad4c4161bed3"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.uprobestats",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [
+          "libuprobestats_client.so"
+        ],
+        "require_native_libs": [
+          "libandroid.so",
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libstatspull.so",
+          "libstatssocket.so"
+        ],
+        "jni_libs": [],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -717,7 +1599,34 @@
         "bytes": 104,
         "sha256": "6bc39cdac4121193d61221eb1f766699f241bb426a0e55dea144f61b13659599"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.uwb",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so"
+        ],
+        "jni_libs": [
+          "libuwb_uci_jni_rust.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -738,7 +1647,50 @@
         "bytes": 370,
         "sha256": "10e0d8490e116d123c3b97bd956ab3a5c22d8e4184b79e204dff4e5f49aec5cc"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.virt",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [
+          "libavf.so"
+        ],
+        "require_native_libs": [
+          "libEGL.so",
+          "libGLESv2.so",
+          "libvulkan.so",
+          "libandroid.so",
+          "libaaudio.so",
+          "libandroidicu.so",
+          "libbinder_ndk.so",
+          "libbinder_rpc_unstable.so",
+          "libc.so",
+          "libdl.so",
+          "liblog.so",
+          "libm.so",
+          "libnativehelper.so",
+          "libnativewindow.so",
+          "libselinux.so",
+          "libstatspull.so",
+          "libstatssocket.so",
+          "libvndksupport.so"
+        ],
+        "jni_libs": [
+          "libvirtualizationservice_jni.so",
+          "libvirtualmachine_jni.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 3
+      },
+      "capex_identity_verified": false,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     },
     {
@@ -759,7 +1711,33 @@
         "bytes": 94,
         "sha256": "2be4f352b93bda691f7e4a725dd39e328148bd3ce46838ad5e0e81db16eb56fa"
       },
-      "manifest_identity_verified": false,
+      "manifest_identity_verified": true,
+      "manifest_identity": {
+        "name": "com.android.wifi",
+        "pre_install_hook": "",
+        "post_install_hook": "",
+        "version_name": "",
+        "vndk_version": "",
+        "provide_native_libs": [],
+        "require_native_libs": [
+          "libbinder_ndk.so",
+          "libc.so",
+          "libdl.so",
+          "libm.so"
+        ],
+        "jni_libs": [
+          "libservice-wifi-jni.so"
+        ],
+        "require_shared_apex_libs": [],
+        "no_code": false,
+        "provide_shared_apex_libs": false,
+        "rebootless_update": false,
+        "vendor_bootstrap": false,
+        "bootstrap": false,
+        "version": 361099999
+      },
+      "capex_identity_verified": true,
+      "payload_manifest_verified": true,
       "avb_signature_verified": false
     }
   ],
@@ -854,7 +1832,7 @@
     }
   ],
   "limitations": [
-    "No AVB signature verification or module manifest identity parsing",
+    "No AVB signature verification",
     "No mounts, GSI code execution, Binder/HAL or Android bootstrap",
     "Direct DT_NEEDED only; no transitive closure or classpath verification"
   ]

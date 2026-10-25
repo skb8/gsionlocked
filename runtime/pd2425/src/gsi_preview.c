@@ -14,9 +14,11 @@
 #include <grp.h>
 #include "preview_image.h"
 #include "preview_policy.h"
-struct pv_record {int prepared,error,stage,uid,gid,caps_zero,nnp,filter_verified,namespaces_private,loop_count,loops[2],loop_control_errno,loop_node_errno,loop_candidates,loop_preferred,loop_probe_number,loop_operation,loop_actual_major,loop_actual_minor,loop_expected_major,loop_expected_minor;};
+#include "preview_linkerconfig.h"
+static int pv_service_mode;
+struct pv_record {int linkerconfig_readonly,prepared,error,stage,uid,gid,caps_zero,nnp,filter_verified,namespaces_private,loop_count,loops[2],loop_control_errno,loop_node_errno,loop_candidates,loop_preferred,loop_probe_number,loop_operation,loop_actual_major,loop_actual_minor,loop_expected_major,loop_expected_minor;};
 struct pv_result {int error,cleanup_error,spawned,reaped,exit_code,signal,metadata_received,parent_unchanged,loops_released,temp_removed;const char *stage;char digest[65],output[8193];struct pv_record child;};
-static const char *pv_stages[]={"none","parent_death","private_namespaces","image_loop","image_mount","runtime_apex","runtime_loop","runtime_mount","elf_validation","chroot","drop_privileges","close_fds","seccomp","exec"};
+static const char *pv_stages[]={"none","parent_death","private_namespaces","image_loop","image_mount","runtime_apex","runtime_loop","runtime_mount","elf_validation","chroot","drop_privileges","close_fds","seccomp","exec","bootstrap_linkerconfig"};
 static int pv_inside(int root,const char *path,int flags){struct open_how how={.flags=(uint64_t)(flags|O_CLOEXEC),.resolve=RESOLVE_IN_ROOT|RESOLVE_NO_MAGICLINKS};return (int)syscall(SYS_openat2,root,path,&how,sizeof(how));}
 /* GET_FREE may return a kernel loop whose /dev node ueventd has not created.
    Android may also omit loop-control entirely. Existing block nodes are safe
@@ -115,6 +117,7 @@ static int pv_exec_guest(void){
     /* Force the mksh builtin: external printf would require forbidden fork. */
     char *args[]={"/apex/com.android.runtime/bin/linker64","/system/bin/sh","-c","builtin echo PD2425_GSI_SHELL_OK",NULL};
     char *env[]={"PATH=/system/bin","HOME=/","ANDROID_ROOT=/system","ANDROID_RUNTIME_ROOT=/apex/com.android.runtime","LD_LIBRARY_PATH=/apex/com.android.runtime/lib64/bionic:/system/lib64",NULL};
+    if(pv_service_mode){char *list[]={args[0],"--list","/system/bin/servicemanager",NULL};return execve(list[0],list,env);}
     return execve(args[0],args,env);
 }
 static void pv_worker(int image,int metadata,int output,int owner_fd,const char *target,const struct stat *parent_mnt,const struct stat *parent_net){
@@ -138,9 +141,10 @@ static void pv_worker(int image,int metadata,int output,int owner_fd,const char 
     int writable_apex=pv_inside(root,"apex",O_RDONLY|O_DIRECTORY);PV_STEP(7,writable_apex);PV_STEP(7,mkdirat(writable_apex,"com.android.runtime",0755));
     char mountpoint[256],source[64];snprintf(mountpoint,sizeof(mountpoint),"/proc/self/fd/%d/com.android.runtime",writable_apex);snprintf(source,sizeof(source),"/proc/self/fd/%d",loop[1]);
     PV_STEP(7,mount(source,mountpoint,"ext4",MS_RDONLY|MS_NOSUID|MS_NODEV,"noload"));close(writable_apex);
+    if(pv_service_mode){PV_STEP(14,pv_create_linkerconfig(root));r.linkerconfig_readonly=1;}
     int linker=-1,shell=-1;PV_STEP(8,linker=pv_inside(root,"apex/com.android.runtime/bin/linker64",O_RDONLY));PV_CHECK(8,pv_elf64(linker));
     unsigned char capability[64];errno=0;ssize_t capsize=fgetxattr(linker,"security.capability",capability,sizeof(capability));if(capsize>=0||(errno!=ENODATA&&errno!=ENOTSUP)){r.error=EACCES;goto failed;}
-    PV_STEP(8,shell=pv_inside(root,"system/bin/sh",O_RDONLY));PV_CHECK(8,pv_elf64(shell));close(linker);close(shell);
+    PV_STEP(8,shell=pv_inside(root,pv_service_mode?"system/bin/servicemanager":"system/bin/sh",O_RDONLY));PV_CHECK(8,pv_elf64(shell));close(linker);close(shell);
     /* The root and runtime are immutable mounts. No host /proc, /sys, /dev or
        data is bound. The image's empty mountpoints remain empty/read-only. */
     PV_STEP(9,fchdir(root));PV_STEP(9,chroot("."));PV_STEP(9,chdir("/"));
@@ -205,7 +209,7 @@ done:
     if(changed_chld&&sigaction(SIGCHLD,&old_chld,NULL))r->cleanup_error=errno;
     if(rmdir(temp))r->cleanup_error=errno;else r->temp_removed=1;
     r->parent_unchanged=pv_parent_same(&mnt,&net,&root);
-    if(!r->error&&(!r->metadata_received||r->child.error||!r->child.prepared||r->exit_code||r->signal||!strstr(r->output,"PD2425_GSI_SHELL_OK\n")))r->error=r->child.error?r->child.error:EPROTO;
+    if(!r->error&&(!r->metadata_received||r->child.error||!r->child.prepared||r->exit_code||r->signal||!(pv_service_mode?(r->child.linkerconfig_readonly&&strstr(r->output,"libbinder.so")&&strstr(r->output,"libc.so")):(strstr(r->output,"PD2425_GSI_SHELL_OK\n")!=NULL))))r->error=r->child.error?r->child.error:EPROTO;
     if(!r->parent_unchanged||!r->loops_released||!r->temp_removed)r->cleanup_error=r->cleanup_error?r->cleanup_error:EPROTO;
     if(!r->error&&!r->cleanup_error)r->stage="complete";
     return r->error||r->cleanup_error?40:0;
@@ -223,16 +227,20 @@ static int pv_main(const char *path){
     rc=pv_run(image,&r);
 report:
     if(image>=0)close(image);
-    fputs("{\"schema\":1,\"component\":\"gsi-preview\",\"runtime_ready\":false,\"guest_boot_complete\":false,\"host_services_changed\":false,\"uid\":",stdout);printf("%lu,\"preview_passed\":%s,\"fingerprint\":",(unsigned long)getuid(),rc==0?"true":"false");json_string(fp);
+    printf("{\"schema\":1,\"component\":\"%s\",\"runtime_ready\":false,\"guest_boot_complete\":false,\"host_services_changed\":false,\"uid\":",pv_service_mode?"service-loader-preview":"gsi-preview");printf("%lu,\"preview_passed\":%s,\"fingerprint\":",(unsigned long)getuid(),rc==0?"true":"false");json_string(fp);
     fputs(",\"boot_id\":",stdout);json_file("/proc/sys/kernel/random/boot_id");fputs(",\"image_sha256\":",stdout);json_string(r.digest);fputs(",\"stage\":",stdout);json_string(r.stage);
     int stage=r.child.stage>=0&&r.child.stage<(int)(sizeof(pv_stages)/sizeof(pv_stages[0]))?r.child.stage:0;fputs(",\"child_stage\":",stdout);json_string(pv_stages[stage]);
     printf(",\"errno\":%d,\"child_errno\":%d,\"cleanup_errno\":%d,\"spawned\":%d,\"reaped\":%d,\"exit_code\":%d,\"signal\":%d,\"prepared\":%s,\"guest_uid\":%d,\"guest_gid\":%d,\"capabilities_zero\":%s,\"no_new_privs\":%d,\"filter_verified\":%d,\"namespaces_private\":%s,\"metadata_received\":%s,\"parent_unchanged\":%s,\"loops_released\":%s,\"temporary_directory_removed\":%s,\"output\":",r.error,r.child.error,r.cleanup_error,r.spawned,r.reaped,r.exit_code,r.signal,r.child.prepared?"true":"false",r.child.uid,r.child.gid,r.child.caps_zero?"true":"false",r.child.nnp,r.child.filter_verified,r.child.namespaces_private?"true":"false",r.metadata_received?"true":"false",r.parent_unchanged?"true":"false",r.loops_released?"true":"false",r.temp_removed?"true":"false");json_string(r.output);
     printf(",\"loop_control_errno\":%d,\"loop_node_errno\":%d,\"loop_candidates\":%d",r.child.loop_control_errno,r.child.loop_node_errno,r.child.loop_candidates);
     printf(",\"loop_preferred\":%d,\"loop_probe_number\":%d,\"loop_actual_major\":%d,\"loop_actual_minor\":%d,\"loop_expected_major\":%d,\"loop_expected_minor\":%d,\"loop_operation\":",r.child.loop_preferred,r.child.loop_probe_number,r.child.loop_actual_major,r.child.loop_actual_minor,r.child.loop_expected_major,r.child.loop_expected_minor);
     json_string(r.child.loop_operation>=0&&r.child.loop_operation<(int)(sizeof(pv_loop_operations)/sizeof(pv_loop_operations[0]))?pv_loop_operations[r.child.loop_operation]:"invalid");
-    fputs(",\"scope\":\"Pinned upstream EvoX linker/mksh only, capless UID65534, default-deny seccomp, private mounts/network, no host data/proc/dev bind, no HAL or Android framework. Recovery by reboot is acceptable; no host takeover attempted.\"}\n",stdout);return rc;
+    printf(",\"service_main_executed\":false,\"linkerconfig_readonly\":%s,\"target\":",r.child.linkerconfig_readonly?"true":"false");json_string(pv_service_mode?"/system/bin/servicemanager":"/system/bin/sh");
+    char config_hash[65];struct pv_sha config_sha;pv_sha_init(&config_sha);pv_sha_update(&config_sha,pv_bootstrap_config,sizeof(pv_bootstrap_config)-1);pv_sha_final(&config_sha,config_hash);
+    fputs(",\"bootstrap_linkerconfig_sha256\":",stdout);json_string(pv_service_mode?config_hash:"");
+    fputs(",\"scope\":\"Pinned upstream EvoX shell or servicemanager linker --list only, never service main, capless UID65534, default-deny seccomp, private mounts/network, no host data/proc/dev bind, no HAL or Android framework. Recovery by reboot is acceptable; no host takeover attempted.\"}\n",stdout);return rc;
 }
 int main(int argc,char **argv){
+    if(argc==3&&!strcmp(argv[1],"--preview-service-loader")){pv_service_mode=1;return pv_main(argv[2]);}
     if(argc==3&&!strcmp(argv[1],"--preview-gsi"))return pv_main(argv[2]);
     if(argc==3&&!strcmp(argv[1],"--verify-image")){int fd=open(argv[2],O_RDONLY|O_CLOEXEC|O_NOFOLLOW);if(fd<0)return 40;char sha[65]={0};int error=pv_exact_file(fd,PV_IMAGE_BYTES,PV_IMAGE_SHA,sha);if(!error)error=pv_ext4(fd,0);close(fd);printf("image_sha256=%s\nerrno=%d\n",sha,error);return error?40:0;}
     return pd_diagnostic_main(argc,argv);
