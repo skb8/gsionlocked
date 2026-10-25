@@ -14,7 +14,12 @@ source=r'''
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/vfs.h>
+static ssize_t test_read(int,void*,size_t);
+static int test_fstatfs(int,struct statfs*);
 static int test_open(const char*,int,...),test_fstat(int,struct stat*),test_ioctl(int,unsigned long,...),test_close(int);
+#define read test_read
+#define fstatfs test_fstatfs
 #define open test_open
 #define fstat test_fstat
 #define ioctl test_ioctl
@@ -22,6 +27,8 @@ static int test_open(const char*,int,...),test_fstat(int,struct stat*),test_ioct
 #define main preview_main
 #include "gsi_preview.c"
 #undef main
+#undef read
+#undef fstatfs
 #undef open
 #undef fstat
 #undef ioctl
@@ -29,8 +36,14 @@ static int test_open(const char*,int,...),test_fstat(int,struct stat*),test_ioct
 #include <assert.h>
 #include <stdarg.h>
 int __system_property_get(const char*k,char*v){(void)k;*v=0;return 0;}
-static int loop_busy,wrong_device,configures,missing_control,missing_preferred,delay_preferred,denied_control;
+static int loop_busy,wrong_device,configures,missing_control,missing_preferred,delay_preferred,denied_control,minor_shift,wrong_sysfs,sysfs_denied;
 static int test_open(const char *p,int flags,...){
+ if(!strncmp(p,"/sys/devices/virtual/block/loop",30)){
+  assert(flags==(O_RDONLY|O_CLOEXEC|O_NOFOLLOW));if(sysfs_denied){errno=EACCES;return -1;}
+  if(!strcmp(p,"/sys/devices/virtual/block/loop7/dev"))return 103;
+  if(!strcmp(p,"/sys/devices/virtual/block/loop8/dev"))return 104;
+  errno=ENOENT;return -1;
+ }
  if(!strcmp(p,"/dev/loop-control")||!strcmp(p,"/dev/block/loop-control")){assert(flags==(O_RDWR|O_CLOEXEC|O_NOFOLLOW));if(denied_control){errno=EACCES;return -1;}if(missing_control){errno=ENOENT;return -1;}return 100;}
  if(!strcmp(p,"/dev/block/loop7")){assert((flags&O_CLOEXEC)&&(flags&O_NOFOLLOW));if(missing_preferred||delay_preferred>0){if(delay_preferred>0)delay_preferred--;errno=ENOENT;return -1;}return 101;}
  if(!strcmp(p,"/dev/block/loop8")){if(missing_control||missing_preferred)return 102;errno=ENOENT;return -1;}
@@ -40,8 +53,14 @@ static int test_open(const char *p,int flags,...){
 static int test_fstat(int fd,struct stat *info){
  if(fd!=100&&fd!=101&&fd!=102)return fstat(fd,info);
  memset(info,0,sizeof(*info));info->st_mode=(fd==100?S_IFCHR:S_IFBLK)|0600;
- info->st_rdev=fd==100?makedev(10,237):makedev(wrong_device?8:7,fd==101?7:8);return 0;
+ info->st_rdev=fd==100?makedev(10,237):makedev(wrong_device?8:7,(fd==101?7:8)<<minor_shift);return 0;
 }
+static ssize_t test_read(int fd,void *buf,size_t size){
+ if(fd!=103&&fd!=104)return read(fd,buf,size);
+ char value[32];int count=snprintf(value,sizeof(value),"7:%d\n",(fd==103?7:8)<<minor_shift);
+ assert(size>(size_t)count);memcpy(buf,value,(size_t)count);return count;
+}
+static int test_fstatfs(int fd,struct statfs *fs){if(fd!=103&&fd!=104)return fstatfs(fd,fs);memset(fs,0,sizeof(*fs));fs->f_type=wrong_sysfs?0xEF53:0x62656572;return 0;}
 static int test_ioctl(int fd,unsigned long request,...){
  if(request==LOOP_CTL_GET_FREE){assert(fd==100);return 7;}
  if(request==LOOP_GET_STATUS64){assert(fd==101);errno=ENXIO;return -1;}
@@ -49,7 +68,7 @@ static int test_ioctl(int fd,unsigned long request,...){
  assert(c->fd==20&&c->info.lo_offset==PV_PAYLOAD_OFFSET&&c->info.lo_sizelimit==PV_PAYLOAD_BYTES&&c->info.lo_flags==(LO_FLAGS_READ_ONLY|LO_FLAGS_AUTOCLEAR));configures++;
  if(loop_busy){errno=EBUSY;return -1;}return 0;
 }
-static int test_close(int fd){return fd==100||fd==101||fd==102?0:close(fd);}
+static int test_close(int fd){return fd==100||fd==101||fd==102||fd==103||fd==104?0:close(fd);}
 static uint32_t eval(unsigned arch,unsigned nr,uint64_t *args){
  uint32_t a=0;for(unsigned pc=0;pc<sizeof(pv_exec_filter)/sizeof(pv_exec_filter[0]);pc++){
   struct sock_filter i=pv_exec_filter[pc];
@@ -61,6 +80,9 @@ static uint32_t eval(unsigned arch,unsigned nr,uint64_t *args){
 }
 int main(int argc,char **argv){
  if(argc>1)return preview_main(argc,argv);
+ dev_t parsed;assert(!pv_loop_parse("7:56\n",&parsed)&&major(parsed)==7&&minor(parsed)==56);
+ const char *bad[]={"8:56\n","7:-1","7:1048576","4294967303:56","7:4294967352","7:56junk"," 7:56","7:56\nextra","7:"};
+ for(unsigned n=0;n<sizeof(bad)/sizeof(bad[0]);n++)assert(pv_loop_parse(bad[n],&parsed)==EPROTO);
  struct pv_record rec={0};int number=-1;
  assert(pv_loop_attach(20,PV_PAYLOAD_OFFSET,PV_PAYLOAD_BYTES,&number,&rec)==101&&number==7&&configures==1);assert(pv_loop_released(7));
  loop_busy=1;assert(pv_loop_attach(20,PV_PAYLOAD_OFFSET,PV_PAYLOAD_BYTES,&number,&rec)==-1&&errno==EBUSY);
@@ -70,6 +92,11 @@ int main(int argc,char **argv){
  missing_preferred=0;missing_control=1;assert(pv_loop_attach(20,PV_PAYLOAD_OFFSET,PV_PAYLOAD_BYTES,&number,&rec)==101&&number==7&&rec.loop_control_errno==ENOENT);
  denied_control=1;old=configures;assert(pv_loop_attach(20,PV_PAYLOAD_OFFSET,PV_PAYLOAD_BYTES,&number,&rec)==-1&&errno==EACCES&&configures==old);
  denied_control=0;missing_control=0;
+ minor_shift=3;assert(pv_loop_attach(20,PV_PAYLOAD_OFFSET,PV_PAYLOAD_BYTES,&number,&rec)==101&&number==7&&rec.loop_expected_minor==56&&rec.loop_actual_minor==56);
+ old=configures;wrong_device=1;assert(pv_loop_attach(20,PV_PAYLOAD_OFFSET,PV_PAYLOAD_BYTES,&number,&rec)==-1&&errno==ENODEV&&configures==old&&rec.loop_operation==PV_LOOP_NODE_IDENTITY&&rec.loop_actual_major==8);
+ wrong_device=0;wrong_sysfs=1;assert(pv_loop_attach(20,PV_PAYLOAD_OFFSET,PV_PAYLOAD_BYTES,&number,&rec)==-1&&errno==EXDEV&&configures==old&&rec.loop_operation==PV_LOOP_SYSFS_READ);
+ wrong_sysfs=0;sysfs_denied=1;assert(pv_loop_attach(20,PV_PAYLOAD_OFFSET,PV_PAYLOAD_BYTES,&number,&rec)==-1&&errno==EACCES&&configures==old&&rec.loop_operation==PV_LOOP_SYSFS_OPEN);
+ sysfs_denied=0;minor_shift=0;
  struct pv_sha s;char h[65];pv_sha_init(&s);pv_sha_final(&s,h);assert(!strcmp(h,"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
  pv_sha_init(&s);pv_sha_update(&s,"a",1);pv_sha_update(&s,"bc",2);pv_sha_final(&s,h);assert(!strcmp(h,"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
  FILE *f=fopen(PV_TEST_PATH,"w+b");assert(f);assert(fwrite("abc",1,3,f)==3&&!fflush(f));assert(!pv_exact_file(fileno(f),3,"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",h));assert(pv_exact_file(fileno(f),4,h,h)==EINVAL);assert(pv_exact_file(fileno(f),3,"wrong",h)==EBADMSG);assert(pv_ext4(fileno(f),0)==EIO);fclose(f);

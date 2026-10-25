@@ -14,21 +14,54 @@
 #include <grp.h>
 #include "preview_image.h"
 #include "preview_policy.h"
-struct pv_record {int prepared,error,stage,uid,gid,caps_zero,nnp,filter_verified,namespaces_private,loop_count,loops[2],loop_control_errno,loop_node_errno,loop_candidates;};
+struct pv_record {int prepared,error,stage,uid,gid,caps_zero,nnp,filter_verified,namespaces_private,loop_count,loops[2],loop_control_errno,loop_node_errno,loop_candidates,loop_preferred,loop_probe_number,loop_operation,loop_actual_major,loop_actual_minor,loop_expected_major,loop_expected_minor;};
 struct pv_result {int error,cleanup_error,spawned,reaped,exit_code,signal,metadata_received,parent_unchanged,loops_released,temp_removed;const char *stage;char digest[65],output[8193];struct pv_record child;};
 static const char *pv_stages[]={"none","parent_death","private_namespaces","image_loop","image_mount","runtime_apex","runtime_loop","runtime_mount","elf_validation","chroot","drop_privileges","close_fds","seccomp","exec"};
 static int pv_inside(int root,const char *path,int flags){struct open_how how={.flags=(uint64_t)(flags|O_CLOEXEC),.resolve=RESOLVE_IN_ROOT|RESOLVE_NO_MAGICLINKS};return (int)syscall(SYS_openat2,root,path,&how,sizeof(how));}
 /* GET_FREE may return a kernel loop whose /dev node ueventd has not created.
    Android may also omit loop-control entirely. Existing block nodes are safe
    candidates only after exact device validation and atomic LOOP_CONFIGURE. */
-static int pv_loop_node(int n,int flags){
+enum {PV_LOOP_CONTROL_OPEN=1,PV_LOOP_CONTROL_IDENTITY,PV_LOOP_GET_FREE,PV_LOOP_SYSFS_OPEN,PV_LOOP_SYSFS_READ,PV_LOOP_NODE_OPEN,PV_LOOP_NODE_STAT,PV_LOOP_NODE_IDENTITY,PV_LOOP_CONFIGURE};
+static const char *pv_loop_operations[]={"none","control_open","control_identity","get_free","sysfs_open","sysfs_read","node_open","node_stat","node_identity","configure"};
+/* Kernel loop minors may be shifted when max_part is set. Identify the main
+   virtual loop from its kernel-owned sysfs dev attribute, never from a guessed
+   minor or an arbitrary block-device path supplied by the image. */
+static int pv_loop_parse(const char *value,dev_t *device){
+    if(value[0]<'0'||value[0]>'9')return EPROTO;
+    char *end=NULL;errno=0;unsigned long major_id=strtoul(value,&end,10);
+    if(errno||major_id!=7||*end!=':')return EPROTO;
+    const char *minor_text=end+1;if(*minor_text<'0'||*minor_text>'9')return EPROTO;
+    errno=0;unsigned long minor_id=strtoul(minor_text,&end,10);
+    if(errno||minor_id>1048575UL||(*end&&strcmp(end,"\n")))return EPROTO;
+    *device=makedev((unsigned)major_id,(unsigned)minor_id);return 0;
+}
+static int pv_loop_device(int n,dev_t *device,struct pv_record *record){
+    if(n<0||n>65535){errno=ERANGE;return -1;}
+    char path[96],value[64];snprintf(path,sizeof(path),"/sys/devices/virtual/block/loop%d/dev",n);
+    record->loop_operation=PV_LOOP_SYSFS_OPEN;
+    int fd=open(path,O_RDONLY|O_CLOEXEC|O_NOFOLLOW);if(fd<0)return -1;
+    record->loop_operation=PV_LOOP_SYSFS_READ;
+    struct statfs fs;int error=0;ssize_t bytes=-1;
+    if(fstatfs(fd,&fs))error=errno;
+    else if((unsigned long)fs.f_type!=0x62656572UL)error=EXDEV; /* SYSFS_MAGIC */
+    else {bytes=read(fd,value,sizeof(value)-1);if(bytes<0)error=errno;else if(!bytes||bytes==(ssize_t)sizeof(value)-1)error=EPROTO;}
+    close(fd);if(error){errno=error;return -1;}
+    value[bytes]=0;error=pv_loop_parse(value,device);if(error){errno=error;return -1;}
+    record->loop_expected_major=(int)major(*device);record->loop_expected_minor=(int)minor(*device);return 0;
+}
+static int pv_loop_node(int n,int flags,struct pv_record *record){
+    record->loop_probe_number=n;record->loop_actual_major=-1;record->loop_actual_minor=-1;
+    record->loop_expected_major=-1;record->loop_expected_minor=-1;
+    dev_t expected;if(pv_loop_device(n,&expected,record))return -1;
     char path[64];snprintf(path,sizeof(path),"/dev/block/loop%d",n);
+    record->loop_operation=PV_LOOP_NODE_OPEN;
     int fd=open(path,flags|O_CLOEXEC|O_NOFOLLOW);
     if(fd<0&&errno==ENOENT){snprintf(path,sizeof(path),"/dev/loop%d",n);fd=open(path,flags|O_CLOEXEC|O_NOFOLLOW);}
     if(fd<0)return -1;
-    struct stat info;int error=0;
+    struct stat info;int error=0;record->loop_operation=PV_LOOP_NODE_STAT;
     if(fstat(fd,&info))error=errno;
-    else if(!S_ISBLK(info.st_mode)||major(info.st_rdev)!=7||minor(info.st_rdev)!=(unsigned)n)error=ENODEV;
+    else {record->loop_operation=PV_LOOP_NODE_IDENTITY;record->loop_actual_major=(int)major(info.st_rdev);record->loop_actual_minor=(int)minor(info.st_rdev);
+        if(!S_ISBLK(info.st_mode)||info.st_rdev!=expected)error=ENODEV;}
     if(error){close(fd);errno=error;return -1;}return fd;
 }
 static int pv_loop_configure(int fd,int backing,uint64_t offset,uint64_t size){
@@ -36,23 +69,25 @@ static int pv_loop_configure(int fd,int backing,uint64_t offset,uint64_t size){
     return ioctl(fd,LOOP_CONFIGURE,&config);
 }
 static int pv_loop_attach(int backing,uint64_t offset,uint64_t size,int *number,struct pv_record *record){
+    record->loop_operation=PV_LOOP_CONTROL_OPEN;
     int control=open("/dev/loop-control",O_RDWR|O_CLOEXEC|O_NOFOLLOW),preferred=-1;
     if(control<0&&errno==ENOENT)control=open("/dev/block/loop-control",O_RDWR|O_CLOEXEC|O_NOFOLLOW);
     if(control<0){record->loop_control_errno=errno;if(errno!=ENOENT)return -1;}
     else {
-        struct stat info;
+        struct stat info;record->loop_operation=PV_LOOP_CONTROL_IDENTITY;
         int error=0;
         if(fstat(control,&info))error=errno;
         else if(!S_ISCHR(info.st_mode)||major(info.st_rdev)!=10||minor(info.st_rdev)!=237)error=ENODEV;
-        if(!error){preferred=ioctl(control,LOOP_CTL_GET_FREE);if(preferred<0)error=errno;else if(preferred>65535){preferred=-1;error=ERANGE;}}
+        if(!error){record->loop_operation=PV_LOOP_GET_FREE;preferred=ioctl(control,LOOP_CTL_GET_FREE);if(preferred<0)error=errno;else if(preferred>65535){preferred=-1;error=ERANGE;}}
         close(control);record->loop_control_errno=error;
         /* Permission/type errors must not be hidden by another allocation path. */
         if(error){errno=error;return -1;}
     }
+    record->loop_preferred=preferred;
     if(preferred>=0){
         for(int attempt=0;attempt<21;attempt++){
-            int fd=pv_loop_node(preferred,O_RDWR);
-            if(fd>=0){record->loop_candidates++;if(!pv_loop_configure(fd,backing,offset,size)){*number=preferred;return fd;}int error=errno;close(fd);record->loop_node_errno=error;if(error!=EBUSY){errno=error;return -1;}break;}
+            int fd=pv_loop_node(preferred,O_RDWR,record);
+            if(fd>=0){record->loop_candidates++;record->loop_operation=PV_LOOP_CONFIGURE;if(!pv_loop_configure(fd,backing,offset,size)){*number=preferred;return fd;}int error=errno;close(fd);record->loop_node_errno=error;if(error!=EBUSY){errno=error;return -1;}break;}
             record->loop_node_errno=errno;if(errno!=ENOENT)return -1;
             if(attempt<20)usleep(50000);
         }
@@ -62,20 +97,20 @@ static int pv_loop_attach(int backing,uint64_t offset,uint64_t size,int *number,
     int last_error=record->loop_node_errno==EBUSY?EBUSY:ENODEV;
     for(int n=0;n<1024;n++){
         if(n==preferred)continue;
-        int fd=pv_loop_node(n,O_RDWR);
+        int fd=pv_loop_node(n,O_RDWR,record);
         if(fd<0){int error=errno;if(error==ENOENT)continue;errno=error;return -1;}
-        record->loop_candidates++;
+        record->loop_candidates++;record->loop_operation=PV_LOOP_CONFIGURE;
         if(!pv_loop_configure(fd,backing,offset,size)){*number=n;return fd;}
         last_error=errno;close(fd);
         if(last_error!=EBUSY){errno=last_error;return -1;}
     }
     errno=last_error;return -1;
 }
-static int pv_loop_released(int n){int fd=pv_loop_node(n,O_RDONLY);if(fd<0)return 0;struct loop_info64 info;int rc=ioctl(fd,LOOP_GET_STATUS64,&info),error=errno;close(fd);return rc<0&&error==ENXIO;}
+static int pv_loop_released(int n){struct pv_record record={0};int fd=pv_loop_node(n,O_RDONLY,&record);if(fd<0)return 0;struct loop_info64 info;int rc=ioctl(fd,LOOP_GET_STATUS64,&info),error=errno;close(fd);return rc<0&&error==ENXIO;}
 static int pv_zero_caps(void){struct __user_cap_header_struct h={.version=_LINUX_CAPABILITY_VERSION_3,.pid=0};struct __user_cap_data_struct d[2]={{0}};if(syscall(SYS_capget,&h,d))return 0;return !(d[0].effective|d[0].permitted|d[0].inheritable|d[1].effective|d[1].permitted|d[1].inheritable);}
 static int pv_limit(int resource,rlim_t value){struct rlimit r={value,value};return setrlimit(resource,&r);}
 static void pv_worker(int image,int metadata,int output,int owner_fd,const char *target,const struct stat *parent_mnt,const struct stat *parent_net){
-    struct pv_record r={.loops={-1,-1}};int loop[2]={-1,-1};char path[256],digest[65];
+    struct pv_record r={.loops={-1,-1},.loop_preferred=-1,.loop_probe_number=-1,.loop_actual_major=-1,.loop_actual_minor=-1,.loop_expected_major=-1,.loop_expected_minor=-1};int loop[2]={-1,-1};char path[256],digest[65];
 #define PV_STEP(n,call) do{r.stage=n;if((call)<0){r.error=errno?errno:EIO;goto failed;}}while(0)
 #define PV_CHECK(n,code) do{r.stage=n;int e=(code);if(e){r.error=e;goto failed;}}while(0)
     PV_STEP(1,prctl(PR_SET_PDEATHSIG,SIGKILL));if(pd_wait_pidfd(owner_fd,0)!=ETIMEDOUT){r.error=ECHILD;goto failed;}
@@ -170,7 +205,7 @@ done:
 static int pv_main(const char *path){
     struct sigaction alarm_action={.sa_handler=SIG_DFL};sigemptyset(&alarm_action.sa_mask);sigaction(SIGALRM,&alarm_action,NULL);sigset_t alarms;sigemptyset(&alarms);sigaddset(&alarms,SIGALRM);sigprocmask(SIG_UNBLOCK,&alarms,NULL);alarm(300);
     char device[PROP_VALUE_MAX],sdk[PROP_VALUE_MAX],abi[PROP_VALUE_MAX],fp[PROP_VALUE_MAX];__system_property_get("ro.product.device",device);__system_property_get("ro.build.version.sdk",sdk);__system_property_get("ro.product.cpu.abi",abi);__system_property_get("ro.build.fingerprint",fp);
-    struct pv_result r={.exit_code=-1,.stage="host_identity"};int rc=40,image=-1;
+    struct pv_result r={.exit_code=-1,.stage="host_identity",.child={.loop_preferred=-1,.loop_probe_number=-1,.loop_actual_major=-1,.loop_actual_minor=-1,.loop_expected_major=-1,.loop_expected_minor=-1}};int rc=40,image=-1;
     if(!pd2425_identity(device,sdk,abi,fp)){r.error=EINVAL;rc=31;goto report;}
     if(getuid()!=0){r.error=EPERM;goto report;}
     char value[64];r.stage="selinux";if(read_text("/sys/fs/selinux/enforce",value,sizeof(value))||(strcmp(value,"1")&&strcmp(value,"1\n"))){r.error=EPERM;goto report;}
@@ -185,6 +220,8 @@ report:
     int stage=r.child.stage>=0&&r.child.stage<(int)(sizeof(pv_stages)/sizeof(pv_stages[0]))?r.child.stage:0;fputs(",\"child_stage\":",stdout);json_string(pv_stages[stage]);
     printf(",\"errno\":%d,\"child_errno\":%d,\"cleanup_errno\":%d,\"spawned\":%d,\"reaped\":%d,\"exit_code\":%d,\"signal\":%d,\"prepared\":%s,\"guest_uid\":%d,\"guest_gid\":%d,\"capabilities_zero\":%s,\"no_new_privs\":%d,\"filter_verified\":%d,\"namespaces_private\":%s,\"metadata_received\":%s,\"parent_unchanged\":%s,\"loops_released\":%s,\"temporary_directory_removed\":%s,\"output\":",r.error,r.child.error,r.cleanup_error,r.spawned,r.reaped,r.exit_code,r.signal,r.child.prepared?"true":"false",r.child.uid,r.child.gid,r.child.caps_zero?"true":"false",r.child.nnp,r.child.filter_verified,r.child.namespaces_private?"true":"false",r.metadata_received?"true":"false",r.parent_unchanged?"true":"false",r.loops_released?"true":"false",r.temp_removed?"true":"false");json_string(r.output);
     printf(",\"loop_control_errno\":%d,\"loop_node_errno\":%d,\"loop_candidates\":%d",r.child.loop_control_errno,r.child.loop_node_errno,r.child.loop_candidates);
+    printf(",\"loop_preferred\":%d,\"loop_probe_number\":%d,\"loop_actual_major\":%d,\"loop_actual_minor\":%d,\"loop_expected_major\":%d,\"loop_expected_minor\":%d,\"loop_operation\":",r.child.loop_preferred,r.child.loop_probe_number,r.child.loop_actual_major,r.child.loop_actual_minor,r.child.loop_expected_major,r.child.loop_expected_minor);
+    json_string(r.child.loop_operation>=0&&r.child.loop_operation<(int)(sizeof(pv_loop_operations)/sizeof(pv_loop_operations[0]))?pv_loop_operations[r.child.loop_operation]:"invalid");
     fputs(",\"scope\":\"Pinned upstream EvoX linker/mksh only, capless UID65534, default-deny seccomp, private mounts/network, no host data/proc/dev bind, no HAL or Android framework. Recovery by reboot is acceptable; no host takeover attempted.\"}\n",stdout);return rc;
 }
 int main(int argc,char **argv){

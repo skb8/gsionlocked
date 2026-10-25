@@ -384,17 +384,20 @@
       "interpretation": "PID namespace entry absent; CONFIG_PID_NS disabled is a hypothesis, not a verified kernel config"
     },
     "gsi_linker_shell_preview": {
-      "state": "owner-device-blocked-at-loop-allocation-fix-pending-retest",
+      "state": "owner-device-blocked-before-loop-configure-sysfs-identity-fix-pending-retest",
       "profile": "profiles/pd2425-evox-preview.json",
       "command": "pd2425-gsi-preview --preview-gsi IMAGE",
       "scope": "exact unmodified upstream EvoX linker/shell with UID65534, zero capabilities, default-deny policy; no Android framework or HAL",
       "full_launch_authorization": false,
       "last_observation": {
-        "source_sha256": "6d696afde77cbfbcf04ca50f6b08f12bbdedec1d2a5908fef58a3beec06b0fc0",
-        "probe_version": "0.1.11-pd2425-gsi-preview",
+        "source_sha256": "af4ce9a18db11adf44bb9dd2aa421a7b08bba8eba894ac4a666ab248f4f4104a",
+        "probe_version": "0.1.12-pd2425-loop-discovery",
         "image_sha256": "2a0bd888510fe3415fbdcebb719c2a99d32801f09ad001333e429f6ebc7e9d3e",
         "child_stage": "image_loop",
-        "child_errno": 2,
+        "child_errno": 19,
+        "loop_control_errno": 0,
+        "loop_node_errno": 19,
+        "loop_candidates": 0,
         "namespaces_private": true,
         "spawned": 1,
         "reaped": 1,
@@ -402,8 +405,25 @@
         "loops_released": true,
         "temporary_directory_removed": true,
         "guest_code_executed": false,
-        "interpretation": "ENOENT at loop setup; previous report cannot distinguish missing loop-control from missing preferred block node. Bounded node wait and existing-loop atomic fallback implemented for next device test."
-      }
+        "interpretation": "Control opened and GET_FREE succeeded; node open/fstat or hardcoded minor validation failed before LOOP_CONFIGURE. max_part minor shift is a hypothesis, not an observed kernel parameter. Exact sysfs loop device identity and operation/rdev diagnostics implemented for retest."
+      },
+      "previous_observations": [
+        {
+          "source_sha256": "6d696afde77cbfbcf04ca50f6b08f12bbdedec1d2a5908fef58a3beec06b0fc0",
+          "probe_version": "0.1.11-pd2425-gsi-preview",
+          "image_sha256": "2a0bd888510fe3415fbdcebb719c2a99d32801f09ad001333e429f6ebc7e9d3e",
+          "child_stage": "image_loop",
+          "child_errno": 2,
+          "namespaces_private": true,
+          "spawned": 1,
+          "reaped": 1,
+          "parent_unchanged": true,
+          "loops_released": true,
+          "temporary_directory_removed": true,
+          "guest_code_executed": false,
+          "interpretation": "ENOENT at loop setup; previous report cannot distinguish missing loop-control from missing preferred block node. Bounded node wait and existing-loop atomic fallback implemented for next device test."
+        }
+      ]
     }
   },
   "live_namespace_entries": {
