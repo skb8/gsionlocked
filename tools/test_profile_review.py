@@ -77,3 +77,15 @@ for field,value in [('component','bootstrap-self-test'),('proc_required',True),(
     bad=copy.deepcopy(r);bad['self_tests']['rootfs'][field]=value;assert not review(bad,p)['rootfs_test_passed']
 bad=copy.deepcopy(r);bad['self_tests']={'bootstrap':bad['self_tests']['rootfs']};assert not review(bad,p)['bootstrap_test_passed']
 print('PASS: rootfs-only proof cannot claim PID/proc/Binder isolation or bootstrap readiness')
+
+from review_pd2425 import GUARD_NAMES
+gt=copy.deepcopy(rf);gt.update(component='guard-self-test',guard_required=True,parent_guard_checked=True,parent_seccomp_mode=2,parent_no_new_privs=0)
+for child in gt['children']:child['guard']={'baseline_self_signal_allowed':True,'installed':True,'no_new_privs':1,'seccomp_mode':2,'verified':12,'phase':5,'denials':[{'name':name,'errno':1} for name in sorted(GUARD_NAMES)]}
+r['self_tests']={'guard':gt}
+result=review(r,p);assert result['syscall_guard_test_passed'] and result['rootfs_test_passed'] and not result['bootstrap_test_passed'] and not result['runtime_ready']
+for field,value in [('installed',False),('no_new_privs',0),('seccomp_mode',0),('verified',11),('phase',4),('baseline_self_signal_allowed',False)]:
+    bad=copy.deepcopy(r);bad['self_tests']['guard']['children'][1]['guard'][field]=value;assert not review(bad,p)['syscall_guard_test_passed']
+for field,value in [('name','unknown'),('errno',0)]:
+    bad=copy.deepcopy(r);bad['self_tests']['guard']['children'][1]['guard']['denials'][0][field]=value;assert not review(bad,p)['syscall_guard_test_passed']
+bad=copy.deepcopy(r);bad['self_tests']['guard']['parent_guard_checked']=False;assert not review(bad,p)['syscall_guard_test_passed']
+print('PASS: limited syscall-guard proof requires all 12 named denials, rootfs and parent preservation')

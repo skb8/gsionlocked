@@ -336,6 +336,24 @@
         "temporary_cleanup_complete": true,
         "scope": "0.1.6 stops at duplicate Binder name; not complete isolation or launch validation"
       }
+    },
+    "rootfs_only": {
+      "state": "owner-device-passed",
+      "source_sha256": "f46e9ee5d81717cad35e8050a171570edd524510b09b324369b9b1aa3d04aba6",
+      "probe_version": "0.1.9-pd2425-rootfs-probe",
+      "probe_source_commit": "1e86903f78b01ad6b20949b8ef84c96b091900f1",
+      "private_mount_namespaces": true,
+      "distinct_child_root_filesystems": true,
+      "root_read_only": true,
+      "inherited_fds_closed": true,
+      "parent_unchanged": true,
+      "cgroup_kill": true,
+      "drained": true,
+      "children_reaped": true,
+      "temporary_cleanup_complete": true,
+      "proc_mounted": false,
+      "pid_isolation": false,
+      "scope": "trusted inert tmpfs/chroot only, shared host PID namespace; no Android/GSI execution or complete sandbox validation"
     }
   },
   "experimental_components": {
@@ -353,12 +371,29 @@
       "group_created": false,
       "interpretation": "PID namespace entry absent; CONFIG_PID_NS disabled is a hypothesis, not a verified kernel config"
     },
-    "rootfs_only_scaffold": {
+    "syscall_guard": {
       "state": "implemented-device-unvalidated",
-      "probe_version": "0.1.9-pd2425-rootfs-probe",
-      "command": "--test-rootfs",
-      "scope": "trusted read-only tmpfs/chroot without proc; shared host PID namespace; no Android/GSI code",
+      "probe_version": "0.1.10-pd2425-syscall-guard",
+      "command": "--test-guard",
+      "policy": "limited deny list of 12 signal/ptrace/remote-memory/BPF/perf syscalls",
+      "scope": "two trusted rootfs-only children; not a complete sandbox or Android service policy",
       "launch_authorization": false
     }
+  },
+  "live_namespace_entries": {
+    "source_sha256": "f46e9ee5d81717cad35e8050a171570edd524510b09b324369b9b1aa3d04aba6",
+    "available": [
+      "mnt",
+      "net",
+      "uts",
+      "cgroup"
+    ],
+    "absent_with_enoent": [
+      "pid",
+      "pid_for_children",
+      "ipc",
+      "user"
+    ],
+    "scope": "proc namespace-entry observations; exact kernel config not independently read"
   }
 }

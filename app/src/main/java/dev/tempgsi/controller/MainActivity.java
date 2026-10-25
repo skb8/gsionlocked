@@ -126,6 +126,15 @@ public final class MainActivity extends Activity {
                     return "Отчёт готов. Сохраните JSON. PID isolation и запуск GSI этим тестом не проверяются.";
                 });
             }));
+            buttons.add(Ui.button(page,"Тест syscall guard",false,()->{
+                if(busy)return;
+                if(inside){status.setText("Проверяйте ограничения в OriginOS.");return;}
+                pd2425Report=null;
+                task("Проверка seccomp в двух своих процессах с приватным rootfs…",()->{
+                    pd2425Report=Pd2425Diagnostics.collectWithGuardTest(this);
+                    return "Отчёт готов. Сохраните JSON. Проверены только перечисленные syscall-ограничения.";
+                });
+            }));
             buttons.add(Ui.button(page,"Сохранить root-отчёт",false,()->{
                 if(busy)return;
                 if(pd2425Report==null){status.setText("Сначала соберите Root-отчёт PD2425.");return;}

@@ -42,6 +42,9 @@ final class Pd2425Diagnostics {
     static String collectWithRootfsTest(Context context)throws Exception {
         return collectWithTest(context,"--test-rootfs","rootfs-self-test","rootfs");
     }
+    static String collectWithGuardTest(Context context)throws Exception {
+        return collectWithTest(context,"--test-guard","guard-self-test","guard");
+    }
     private static String collectWithTest(Context context,String argument,String component,String field)throws Exception {
         JSONObject base=run(context,"--diagnose-json","apk-probe",3,true);
         JSONObject tests=new JSONObject();

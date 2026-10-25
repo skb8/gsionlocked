@@ -3,13 +3,15 @@
 #define PD2425_BOOTSTRAP_PROBE_H
 #include <limits.h>
 #include <sys/statvfs.h>
+#include "syscall_guard.h"
 struct pd_boot_child {
     int index,error,pid,ppid,proc_self_pid,proc_pid_count,root_read_only,proc_read_only,fds_closed;
     uint64_t pid_dev,pid_ino,mnt_dev,mnt_ino,root_dev,root_ino;char stage[48];
+    struct pd_guard_result guard;
 };
 struct pd_boot_context {
     struct pd_namespace_context ns;
-    struct stat parent_pid,parent_root;int rootfs_only;const char *setup_stage;
+    struct stat parent_pid,parent_root;int rootfs_only,guard_required,parent_seccomp,parent_nnp,parent_guard_checked;const char *setup_stage;
     struct pd_boot_child children[2];int received[2];
 };
 _Static_assert(offsetof(struct pd_boot_context,ns)==0,"namespace/cgroup context must be first");
@@ -84,6 +86,7 @@ static void pd_boot_worker(struct pd_boot_context *ctx,int index,struct pd_boot_
         struct stat info;strcpy(r->stage,"host_paths_absent");
         if(!lstat(absent[n],&info)||errno!=ENOENT){r->error=EXDEV;goto done;}
     }
+    if(ctx->guard_required){PD_BOOT_STEP("syscall_guard",pd_guard_install_and_test(&r->guard));}
     strcpy(r->stage,"complete");
 done:
 #undef PD_BOOT_STEP
@@ -99,6 +102,12 @@ static int pd_boot_create(void *opaque) {
     ctx->setup_stage="parent_root";
     if(stat("/",&ctx->parent_root))return errno;
     if(!ctx->parent_root.st_ino)return ENODEV;
+    if(ctx->guard_required){
+        ctx->setup_stage="parent_guard_state";
+        ctx->parent_seccomp=prctl(PR_GET_SECCOMP,0,0,0,0);if(ctx->parent_seccomp<0)return errno;
+        ctx->parent_nnp=prctl(PR_GET_NO_NEW_PRIVS,0,0,0,0);if(ctx->parent_nnp<0)return errno;
+        if(syscall(SYS_kill,getpid(),0))return errno;
+    }
     ctx->setup_stage="namespace_resources";
     return pd_namespace_create(&ctx->ns);
 }
@@ -113,6 +122,7 @@ static int pd_boot_results_valid(const struct pd_boot_context *ctx) {
         const struct pd_boot_child *r=&ctx->children[n];
         if(!ctx->received[n])return ENODATA;
         if(r->error)return r->error;
+        if(ctx->guard_required&&!pd_guard_result_valid(&r->guard))return EPROTO;
         if(strcmp(r->stage,"complete")||!r->root_read_only||!r->fds_closed||!r->mnt_ino||!r->root_ino)return EPROTO;
         if(ctx->rootfs_only){if(r->pid<=1||r->ppid<=0||r->pid_ino||r->pid_dev||r->proc_self_pid||r->proc_pid_count||r->proc_read_only)return EPROTO;}
         else if(r->pid!=1||r->ppid!=0||r->proc_self_pid!=1||r->proc_pid_count!=1||!r->proc_read_only||!r->pid_ino)return EPROTO;
@@ -137,12 +147,16 @@ static int pd_boot_inspect(void *opaque,const pid_t *children) {
     int error=pd_boot_results_valid(ctx),parent_error=pd_namespace_parent_check(&ctx->ns);struct stat now;
     if(!parent_error&&!ctx->rootfs_only&&(stat("/proc/self/ns/pid",&now)||!pd_same_inode(&now,&ctx->parent_pid)))parent_error=EXDEV;
     if(!parent_error&&(stat("/",&now)||!pd_same_inode(&now,&ctx->parent_root)))parent_error=EXDEV;
+    if(!parent_error&&ctx->guard_required){
+        ctx->parent_guard_checked=1;
+        if(prctl(PR_GET_SECCOMP,0,0,0,0)!=ctx->parent_seccomp||prctl(PR_GET_NO_NEW_PRIVS,0,0,0,0)!=ctx->parent_nnp||syscall(SYS_kill,getpid(),0))parent_error=EPROTO;
+    }
     if(parent_error)ctx->ns.parent_unchanged=0;
     return parent_error?parent_error:error;
 }
-static int pd_boot_selftest_json(int matched,const char *fingerprint,int rootfs_only) {
+static int pd_boot_selftest_json(int matched,const char *fingerprint,int rootfs_only,int guard_required) {
     struct pd_boot_context ctx={.ns={.group={.root_fd=-1,.group_fd=-1},.report_fd={-1,-1},.temp_fd=-1}};
-    ctx.rootfs_only=rootfs_only;
+    ctx.rootfs_only=rootfs_only;ctx.guard_required=guard_required;
     struct pd_cgroup_ops ops={.create=pd_boot_create,.add=pd_cg_add,.members=pd_cg_members,.populated=pd_cg_populated,.kill_group=pd_cg_kill,.remove_group=pd_namespace_remove,.context=&ctx,.child_task=pd_boot_child_task,.inspect_children=pd_boot_inspect,.new_pid_namespace=!rootfs_only};
     struct pd_cgroup_result result={.stage="identity"};int rc=40;
     if(!matched){result.error=EINVAL;rc=31;}
@@ -152,17 +166,20 @@ static int pd_boot_selftest_json(int matched,const char *fingerprint,int rootfs_
         else rc=pd_guarded_cgroup_run(&ops,&result,25);
     }
     if(result.stage&&!strcmp(result.stage,"create")&&result.error&&ctx.setup_stage)result.stage=ctx.setup_stage;
-    if(!rc&&(!ctx.ns.parent_unchanged||!ctx.ns.temp_removed)){result.error=EPROTO;rc=40;}
-    fputs("{\"schema\":1,\"component\":",stdout);json_string(rootfs_only?"rootfs-self-test":"bootstrap-self-test");
+    if(!rc&&(!ctx.ns.parent_unchanged||!ctx.ns.temp_removed||(guard_required&&!ctx.parent_guard_checked))){result.error=EPROTO;rc=40;}
+    fputs("{\"schema\":1,\"component\":",stdout);json_string(guard_required?"guard-self-test":rootfs_only?"rootfs-self-test":"bootstrap-self-test");
     fputs(",\"runtime_ready\":false,\"test_only_children\":true,\"host_services_changed\":false,\"fingerprint\":",stdout);json_string(fingerprint);
     fputs(",\"boot_id\":",stdout);json_file("/proc/sys/kernel/random/boot_id");
     printf(",\"uid\":%lu,\"passed\":%s,\"parent_checked\":%s,\"parent_unchanged\":%s,\"temporary_directory_removed\":%s,\"group_created\":%s,\"is_cgroup2\":%s,\"spawned\":%d,\"pidfds\":%d,\"membership_verified\":%s,\"kill_succeeded\":%s,\"drained\":%s,\"reaped\":%d,\"errno\":%d,\"cleanup_errno\":%d,\"cleanup_complete\":%s,\"stage\":",(unsigned long)getuid(),rc?"false":"true",ctx.ns.parent_checked?"true":"false",ctx.ns.parent_unchanged?"true":"false",ctx.ns.temp_removed?"true":"false",ctx.ns.group.ever_created?"true":"false",ctx.ns.group.is_cgroup2?"true":"false",result.spawned,result.pidfds,result.membership_verified?"true":"false",result.kill_succeeded?"true":"false",result.drained?"true":"false",result.reaped,result.error,result.cleanup_errno,!result.cleanup_errno&&result.reaped==result.spawned&&ctx.ns.temp_removed?"true":"false");json_string(result.stage);
     printf(",\"parent_pid_namespace\":{\"device\":%llu,\"inode\":%llu},\"parent_mount_namespace\":{\"device\":%llu,\"inode\":%llu},\"parent_root\":{\"device\":%llu,\"inode\":%llu},\"children\":[",(unsigned long long)ctx.parent_pid.st_dev,(unsigned long long)ctx.parent_pid.st_ino,(unsigned long long)ctx.ns.parent_mnt.st_dev,(unsigned long long)ctx.ns.parent_mnt.st_ino,(unsigned long long)ctx.parent_root.st_dev,(unsigned long long)ctx.parent_root.st_ino);
     for(int n=0;n<2;n++){
         const struct pd_boot_child *r=&ctx.children[n];if(n)putchar(',');
-        printf("{\"index\":%d,\"reported\":%s,\"errno\":%d,\"pid\":%d,\"ppid\":%d,\"proc_self_pid\":%d,\"proc_pid_count\":%d,\"root_read_only\":%s,\"proc_read_only\":%s,\"inherited_fds_closed\":%s,\"pid_namespace\":{\"device\":%llu,\"inode\":%llu},\"mount_namespace\":{\"device\":%llu,\"inode\":%llu},\"root\":{\"device\":%llu,\"inode\":%llu},\"stage\":",n,ctx.received[n]?"true":"false",r->error,r->pid,r->ppid,r->proc_self_pid,r->proc_pid_count,r->root_read_only?"true":"false",r->proc_read_only?"true":"false",r->fds_closed?"true":"false",(unsigned long long)r->pid_dev,(unsigned long long)r->pid_ino,(unsigned long long)r->mnt_dev,(unsigned long long)r->mnt_ino,(unsigned long long)r->root_dev,(unsigned long long)r->root_ino);json_string(r->stage);putchar('}');
+        printf("{\"index\":%d,\"reported\":%s,\"errno\":%d,\"pid\":%d,\"ppid\":%d,\"proc_self_pid\":%d,\"proc_pid_count\":%d,\"root_read_only\":%s,\"proc_read_only\":%s,\"inherited_fds_closed\":%s,\"pid_namespace\":{\"device\":%llu,\"inode\":%llu},\"mount_namespace\":{\"device\":%llu,\"inode\":%llu},\"root\":{\"device\":%llu,\"inode\":%llu},\"stage\":",n,ctx.received[n]?"true":"false",r->error,r->pid,r->ppid,r->proc_self_pid,r->proc_pid_count,r->root_read_only?"true":"false",r->proc_read_only?"true":"false",r->fds_closed?"true":"false",(unsigned long long)r->pid_dev,(unsigned long long)r->pid_ino,(unsigned long long)r->mnt_dev,(unsigned long long)r->mnt_ino,(unsigned long long)r->root_dev,(unsigned long long)r->root_ino);json_string(r->stage);
+        printf(",\"guard\":{\"baseline_self_signal_allowed\":%s,\"installed\":%s,\"no_new_privs\":%d,\"seccomp_mode\":%d,\"verified\":%d,\"phase\":%d,\"denials\":[",r->guard.baseline?"true":"false",r->guard.installed?"true":"false",r->guard.no_new_privs,r->guard.mode,r->guard.verified,r->guard.phase);
+        for(int k=0;k<PD_GUARD_COUNT;k++){if(k)putchar(',');fputs("{\"name\":",stdout);json_string(pd_guard_names[k]);printf(",\"errno\":%d}",r->guard.errors[k]);}fputs("]}}",stdout);
     }
-    printf("],\"pid_namespace_required\":%s,\"proc_required\":%s,\"scope\":",rootfs_only?"false":"true",rootfs_only?"false":"true");
-    json_string(rootfs_only?"Trusted read-only tmpfs/chroot only; shared host PID namespace, no proc mount. No PID isolation, Android init, GSI execution, untrusted sandbox or hardware handoff.":"Trusted inert PID1/proc/read-only tmpfs scaffold only. No Android init, GSI execution, untrusted sandbox, BPF/SELinux policy or hardware handoff.");puts("}");return rc;
+    printf("],\"guard_required\":%s,\"parent_guard_checked\":%s,\"parent_seccomp_mode\":%d,\"parent_no_new_privs\":%d",guard_required?"true":"false",ctx.parent_guard_checked?"true":"false",ctx.parent_seccomp,ctx.parent_nnp);
+    printf(",\"pid_namespace_required\":%s,\"proc_required\":%s,\"scope\":",rootfs_only?"false":"true",rootfs_only?"false":"true");
+    json_string(rootfs_only?"Trusted read-only tmpfs/chroot only; shared host PID namespace, no proc mount. Optional limited syscall guard is not a complete sandbox. No PID isolation, Android init, GSI execution or hardware handoff.":"Trusted inert PID1/proc/read-only tmpfs scaffold only. No Android init, GSI execution, untrusted sandbox, BPF/SELinux policy or hardware handoff.");puts("}");return rc;
 }
 #endif

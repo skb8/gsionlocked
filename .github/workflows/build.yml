@@ -27,6 +27,7 @@ jobs:
       - run: python tools/test_cgroup_probe.py
       - run: python tools/test_namespace_probe.py
       - run: python tools/test_bootstrap_probe.py
+      - run: python tools/test_syscall_guard.py
       - run: python tools/build_app.py --debug --ndk "$ANDROID_HOME/ndk/25.2.9519653"
       - run: python tools/build_runtime.py --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME"
       - uses: actions/upload-artifact@v4

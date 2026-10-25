@@ -1,7 +1,7 @@
 # PD2425 diagnostic port
 
 OTA-analyzed; host identities, own-child cgroup.kill and root-only mount/network/BinderFS probe tested on PD2425. **Not a runnable GSI environment.**
-The preflight executables accept --check-host / --diagnose / --diagnose-json and explicit --test-cgroup / --test-isolation / --test-bootstrap / --test-rootfs.
+The preflight executables accept --check-host / --diagnose / --diagnose-json and explicit --test-cgroup / --test-isolation / --test-bootstrap / --test-rootfs / --test-guard.
 For observation modes exit 0 means an exact allowlisted host identity, never readiness; exit 31 means mismatch;
 78 rejects unsupported operations. Reports always contain runtime_ready=0.
 Observation modes do not write. Observation modes never mount, control host services, change SELinux or open watchdog devices. The explicit cgroup test only creates/migrates/kills its own two children in a fresh group and removes it. The separate --test-isolation mode mounts tmpfs/BinderFS only inside those children's private mount namespaces.
@@ -96,3 +96,20 @@ tmpfs/chroot and FD closure. It never mounts proc and verifies /proc is absent.
 It has a separate rootfs-self-test contract with pid_namespace_required=false
 and proc_required=false. Its success cannot validate PID/proc/Binder isolation,
 Android bootstrap or an untrusted-code sandbox. Device validation is pending.
+
+
+The owner's 0.1.9 report passed rootfs-only isolation and complete own-child
+cleanup. PID/proc/Binder or guest execution are not implied. Namespace entries
+mnt/net/uts/cgroup were present; pid/pid_for_children/ipc/user returned ENOENT.
+
+0.1.10 adds explicit --test-guard (guard-self-test) on the same inert rootfs
+scaffold. Each trusted child installs no_new_privs and an arch-checked seccomp
+deny list of 12 signal, ptrace, remote-memory, BPF and perf syscall paths.
+Only harmless self signal=0, zero-length self memory I/O and invalid-argument
+probes run. No host target, ptrace attach, perf event or BPF program is used.
+Parent seccomp/no_new_privs and self signal permission must remain unchanged.
+The filter is tested on the real CI kernel in an owned child; arm64 device
+integration is pending. This limited union policy is not a complete sandbox or
+an Android service policy (e.g. blanket tgkill denial may break Java). No guest
+or host service is executed/controlled. All exact host/root/Enforcing and cleanup
+gates remain in force; unsupported/failed setup never authorizes launch.

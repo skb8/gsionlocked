@@ -75,6 +75,22 @@ def bootstrap_test_ok(test,report,rootfs_only=False):
         elif pid is None or pid==parent_pid or pid in pids:return False
         pids.add(pid);mounts.add(mnt);roots.add(root[0])
     return True
+GUARD_NAMES={'kill','tkill','tgkill','pidfd_send_signal','rt_sigqueueinfo','rt_tgsigqueueinfo','ptrace','process_vm_writev','process_madvise','bpf','perf_event_open','process_vm_readv'}
+def guard_test_ok(test,report):
+    if not isinstance(test,dict) or test.get('component')!='guard-self-test' or test.get('guard_required') is not True or test.get('parent_guard_checked') is not True:return False
+    if type(test.get('parent_seccomp_mode')) is not int or test['parent_seccomp_mode'] not in [0,2] or type(test.get('parent_no_new_privs')) is not int or test['parent_no_new_privs'] not in [0,1]:return False
+    base=dict(test);base['component']='rootfs-self-test'
+    if not bootstrap_test_ok(base,report,True):return False
+    for child in test['children']:
+        g=child.get('guard')
+        if not isinstance(g,dict) or g.get('baseline_self_signal_allowed') is not True or g.get('installed') is not True or g.get('no_new_privs')!=1 or g.get('seccomp_mode')!=2 or g.get('verified')!=len(GUARD_NAMES) or g.get('phase')!=5:return False
+        denials=g.get('denials')
+        if not isinstance(denials,list) or len(denials)!=len(GUARD_NAMES):return False
+        names=set()
+        for item in denials:
+            if not isinstance(item,dict) or not isinstance(item.get('name'),str) or item['name'] not in GUARD_NAMES or item['name'] in names or type(item.get('errno')) is not int or item['errno']!=1:return False
+            names.add(item['name'])
+    return True
 def review(report,profile):
     issues=[];observed=[]
     def issue(code,detail):issues.append({'code':code,'detail':detail})
@@ -84,9 +100,10 @@ def review(report,profile):
     nstest=tests.get('namespaces') if isinstance(tests,dict) else None
     bstest=tests.get('bootstrap') if isinstance(tests,dict) else None
     rftest=tests.get('rootfs') if isinstance(tests,dict) else None
+    guardtest=tests.get('guard') if isinstance(tests,dict) else None
     if report.get('runtime_ready') is not False:issue('report_contract','Unexpected readiness claim')
     if report.get('no_device_changes') is not True:
-        if not (isinstance(cgtest,dict) or isinstance(nstest,dict) or isinstance(bstest,dict) or isinstance(rftest,dict)) or report.get('observations_read_only') is not True:issue('report_contract','Unrecognized non-read-only report')
+        if not (isinstance(cgtest,dict) or isinstance(nstest,dict) or isinstance(bstest,dict) or isinstance(rftest,dict) or isinstance(guardtest,dict)) or report.get('observations_read_only') is not True:issue('report_contract','Unrecognized non-read-only report')
     hardware=report.get('device')==profile['device'] and report.get('sdk')==str(profile['host_sdk']) and report.get('abi')=='arm64-v8a'
     host_match=hardware and report.get('fingerprint') in profile.get('accepted_host_fingerprints',[profile['fingerprint']])
     ota_exact=hardware and report.get('fingerprint')==profile['fingerprint']
@@ -169,7 +186,9 @@ def review(report,profile):
     if bstest is not None and not bootstrap_pass:issue('bootstrap_test_not_passed',str(bstest.get('stage',bstest.get('collection_error',bstest.get('not_run','incomplete result')))) if isinstance(bstest,dict) else 'invalid result')
     rootfs_pass=test_environment_ok and bootstrap_test_ok(rftest,report,True)
     if rftest is not None and not rootfs_pass:issue('rootfs_test_not_passed',str(rftest.get('stage',rftest.get('collection_error',rftest.get('not_run','incomplete result')))) if isinstance(rftest,dict) else 'invalid result')
-    return {'schema':2,'runtime_ready':False,'host_profile_match':host_match,'ota_fingerprint_exact_match':ota_exact,'observation_checks_passed':not issues,'issues':issues,'observed_process_credentials':observed,'return_keys':selected_keys,'cgroup_kill_child_test_passed':bool(cgroup_pass or namespace_pass or bootstrap_pass or rootfs_pass),'namespace_test_passed':namespace_pass,'bootstrap_test_passed':bootstrap_pass,'rootfs_test_passed':rootfs_pass,'remaining_device_tests':REMAINING,'warning':'Observed identities and test results are not launch authorization. No service control is generated.'}
+    guard_pass=test_environment_ok and guard_test_ok(guardtest,report)
+    if guardtest is not None and not guard_pass:issue('guard_test_not_passed',str(guardtest.get('stage',guardtest.get('collection_error',guardtest.get('not_run','incomplete result')))) if isinstance(guardtest,dict) else 'invalid result')
+    return {'schema':2,'runtime_ready':False,'host_profile_match':host_match,'ota_fingerprint_exact_match':ota_exact,'observation_checks_passed':not issues,'issues':issues,'observed_process_credentials':observed,'return_keys':selected_keys,'cgroup_kill_child_test_passed':bool(cgroup_pass or namespace_pass or bootstrap_pass or rootfs_pass or guard_pass),'namespace_test_passed':namespace_pass,'bootstrap_test_passed':bootstrap_pass,'rootfs_test_passed':bool(rootfs_pass or guard_pass),'syscall_guard_test_passed':guard_pass,'remaining_device_tests':REMAINING,'warning':'Observed identities and test results are not launch authorization. No service control is generated.'}
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('report',type=Path);p.add_argument('--output',type=Path);a=p.parse_args()
     result=review(json.loads(a.report.read_text()),json.loads((ROOT/'profiles/pd2425-originos6.json').read_text()))

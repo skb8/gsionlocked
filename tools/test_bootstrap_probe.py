@@ -140,4 +140,7 @@ int main(int argc,char **argv){
     report=json.loads(r.stdout)
     assert r.returncode==31 and report['component']=='rootfs-self-test'
     assert report['pid_namespace_required'] is False and report['proc_required'] is False and report['spawned']==0
+    r=subprocess.run([str(d/'test'),'--test-guard'],capture_output=True,text=True,timeout=5)
+    report=json.loads(r.stdout)
+    assert r.returncode==31 and report['component']=='guard-self-test' and report['guard_required'] is True
 print('PASS: PID1/private proc/read-only rootfs, FD closure ordering, host-path/PID rejection and partial failures (mock kernel)')
