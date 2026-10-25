@@ -3,9 +3,11 @@
 #ifndef PD2425_SERVICE_CLIENT_H
 #define PD2425_SERVICE_CLIENT_H
 #include <sys/mman.h>
-static int sm_check_process(pid_t pid,const struct sm_environment *expected){
+#define SM_MAX_THREADS 8
+static int sm_check_process(pid_t pid,const struct sm_environment *expected,int *thread_count){
     char path[96],status[8192],context[128];snprintf(path,sizeof(path),"/proc/%d/status",pid);
     int error=read_text(path,status,sizeof(status));if(error)return error;
+    char *threads=strstr(status,"Threads:");int count=0;if(!threads||sscanf(threads+8,"%d",&count)!=1||count<1)return EPROTO;*thread_count=count;if(count>SM_MAX_THREADS)return E2BIG;
     const char *names[]={"Uid:","Gid:"};
     for(int n=0;n<2;n++){char *row=strstr(status,names[n]);unsigned long a,b,c,d;if(!row||sscanf(row+4,"%lu%lu%lu%lu",&a,&b,&c,&d)!=4||a!=1000||b!=1000||c!=1000||d!=1000)return EPERM;}
     const char *caps[]={"CapEff:","CapPrm:","CapInh:","CapAmb:"};

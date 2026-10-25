@@ -4,6 +4,7 @@
 #define PD2425_SERVICE_POLICY_H
 #include "preview_policy.h"
 #include <linux/android/binder.h>
+#define SM_THREAD_FLAGS (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID)
 enum {SM_IOCTL_COUNT=8
 #ifdef BINDER_ENABLE_ONEWAY_SPAM_DETECTION
     +1
@@ -23,6 +24,19 @@ static size_t sm_build_policy(struct sock_filter *out,size_t capacity){
         BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,arch)),
         BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,PD_GUARD_ARCH,1,0),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_KILL_PROCESS),
         BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,nr)),
+        /* Exact Bionic pthread flags, zero upper word. CLONE_THREAD keeps the
+           same TGID/credentials/namespaces/filter; no process or namespace clone. */
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_clone,0,6),
+        BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,args[0])+4),
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,0,0,3),
+        BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,args[0])),
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SM_THREAD_FLAGS,0,1),
+        BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ALLOW),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|EPERM),
+#ifdef SYS_clone3
+        /* Pointer-based flags cannot be inspected by classic BPF. Never allow
+           clone3; ENOSYS lets libc use the checked clone ABI instead. */
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_clone3,0,1),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|ENOSYS),
+#endif
         /* Restore own parent-death kill after the kernel's exec transition.
            No other signal or disabling PDEATHSIG is allowed. */
         BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_prctl,0,7),

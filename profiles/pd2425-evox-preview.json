@@ -56,6 +56,10 @@
     "full_android_boot": false,
     "entry_metadata": "profiles/pd2425-servicemanager-entry.json",
     "entry_sha256": "359a9ca045b4d3d775d28ebb0966ca9927fb4d4c5ec1dd5b2b1cb714a9aa1482",
-    "service_context": "u:object_r:service_manager_service:s0"
+    "service_context": "u:object_r:service_manager_service:s0",
+    "pthread_clone_flags": "0x003d0f00",
+    "thread_limit": 8,
+    "thread_limit_kind": "supervisor-observed, not a hard kernel thread quota",
+    "clone3": "denied with ENOSYS; libc may fall back to checked clone"
   }
 }

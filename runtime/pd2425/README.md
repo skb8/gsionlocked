@@ -184,3 +184,14 @@ transition based on query output. Requires device validation. See
 profiles/pd2425-servicemanager-entry.json and tools/test_service_entry.py; the
 optional local test argument accepts the exact image-extracted ELF and compares
 native C output, Python output, checked-in metadata and readelf interpretation.
+
+
+0.1.20 permits only the exact Bionic pthread clone flags (0x3d0f00, upper word
+zero). Separate-process clones and all flag mutations are denied. clone3 stays
+denied with ENOSYS to permit libc fallback to checked clone. Threads inherit the
+same TGID/FDs/namespaces/seccomp/capless credentials. The supervisor observes a
+maximum of eight threads (not a hard kernel quota), retains group CPU/deadline
+limits and kills/reaps the owned whole thread group via pidfd. Real CI pthread
+create/join, inherited denials and live-thread group-kill tests are included.
+The owner report confirms ELF/guard success but a pthread EPERM in 0.1.19; this
+change still needs Android validation and never authorizes full boot/handoff.

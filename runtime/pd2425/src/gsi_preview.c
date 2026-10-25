@@ -26,7 +26,7 @@
 static int pv_helper_fd=-1;
 static int pv_service_mode;
 struct pv_record {struct sm_exec_observation exec;struct sm_environment sm;int linkerconfig_readonly,prepared,error,stage,uid,gid,caps_zero,nnp,filter_verified,namespaces_private,loop_count,loops[2],loop_control_errno,loop_node_errno,loop_candidates,loop_preferred,loop_probe_number,loop_operation,loop_actual_major,loop_actual_minor,loop_expected_major,loop_expected_minor;};
-struct pv_result {int ping_passed,identity_verified,owned_stop,host_enforcing, ping_errno;int error,cleanup_error,spawned,reaped,exit_code,signal,metadata_received,parent_unchanged,loops_released,temp_removed;const char *stage;char digest[65],output[8193];struct pv_record child;};
+struct pv_result {int thread_peak;int ping_passed,identity_verified,owned_stop,host_enforcing, ping_errno;int error,cleanup_error,spawned,reaped,exit_code,signal,metadata_received,parent_unchanged,loops_released,temp_removed;const char *stage;char digest[65],output[8193];struct pv_record child;};
 static const char *pv_stages[]={"none","parent_death","private_namespaces","image_loop","image_mount","runtime_apex","runtime_loop","runtime_mount","elf_validation","chroot","drop_privileges","close_fds","seccomp","exec","bootstrap_linkerconfig","service_filesystems","service_domain"};
 _Static_assert(sizeof(struct pv_record)<=PIPE_BUF,"atomic service setup record");
 static int pv_inside(int root,const char *path,int flags){struct open_how how={.flags=(uint64_t)(flags|O_CLOEXEC),.resolve=RESOLVE_IN_ROOT|RESOLVE_NO_MAGICLINKS};return (int)syscall(SYS_openat2,root,path,&how,sizeof(how));}
@@ -217,8 +217,8 @@ static int pv_run(int image,struct pv_result *r){
         if(fds[0].revents&POLLIN){ssize_t n=read(metadata[0],&r->child,sizeof(r->child));if(n!=(ssize_t)sizeof(r->child)){r->error=EPROTO;break;}r->metadata_received=1;}
         if(fds[1].revents&POLLIN){char b[1024];ssize_t n=read(output[0],b,sizeof(b));if(n>0){size_t copy=(size_t)n;if(copy>sizeof(r->output)-1-used)copy=sizeof(r->output)-1-used;memcpy(r->output+used,b,copy);used+=copy;r->output[used]=0;}}
         if(pv_service_mode==2&&r->metadata_received&&r->child.prepared&&!(fds[2].revents&POLLIN)){
-            int identity=sm_check_process(child,&r->child.sm);
-            if(!identity){r->ping_errno=sm_ping_process(child,&r->child.sm);if(!r->ping_errno&&!sm_check_process(child,&r->child.sm)){r->identity_verified=r->ping_passed=r->owned_stop=1;break;}}
+            int threads=0;int identity=sm_check_process(child,&r->child.sm,&threads);if(threads>r->thread_peak)r->thread_peak=threads;if(identity==E2BIG){r->error=E2BIG;break;}
+            if(!identity){r->ping_errno=sm_ping_process(child,&r->child.sm);if(!r->ping_errno){int after=sm_check_process(child,&r->child.sm,&threads);if(threads>r->thread_peak)r->thread_peak=threads;if(after==E2BIG){r->error=E2BIG;break;}if(!after){r->identity_verified=r->ping_passed=r->owned_stop=1;break;}}}
             else r->ping_errno=identity;
         }
         exited=fds[2].revents&POLLIN;clock_gettime(CLOCK_MONOTONIC,&now);if(now.tv_sec-start.tv_sec>=20){r->error=ETIMEDOUT;break;}
@@ -227,8 +227,9 @@ static int pv_run(int image,struct pv_result *r){
     for(int chunks=0;chunks<128;chunks++){char b[1024];ssize_t n=read(output[0],b,sizeof(b));if(n<=0)break;size_t copy=(size_t)n;if(copy>sizeof(r->output)-1-used)copy=sizeof(r->output)-1-used;memcpy(r->output+used,b,copy);used+=copy;r->output[used]=0;}
     for(int records=0;records<2;records++){ssize_t n=read(metadata[0],&r->child,sizeof(r->child));if(n==(ssize_t)sizeof(r->child))r->metadata_received=1;else break;}
 done:
-    /* No descendants are created by trusted setup; guest clone/fork/vfork are
-       default-denied. Never signal a process outside this unreaped owned PID. */
+    /* Trusted setup creates one process. Smoke permits exact pthread clones
+       in its TGID only; pidfd SIGKILL terminates that entire thread group.
+       Never signal a process outside this unreaped owned PID. */
     if(child>1){if(task>=0)syscall(SYS_pidfd_send_signal,task,SIGKILL,NULL,0);else kill(child,SIGKILL);int status=0;pid_t n=0;for(int t=0;t<100;t++){n=waitpid(child,&status,WNOHANG);if(n==child||(n<0&&errno!=EINTR))break;usleep(50000);}if(n==child){r->reaped=1;r->exit_code=WIFEXITED(status)?WEXITSTATUS(status):-1;r->signal=WIFSIGNALED(status)?WTERMSIG(status):0;}else r->cleanup_error=n==0?ETIMEDOUT:errno;}
     for(int n=0;n<2;n++){if(metadata[n]>=0)close(metadata[n]);if(output[n]>=0)close(output[n]);}if(task>=0)close(task);if(owner>=0)close(owner);
     r->loops_released=1;
@@ -281,6 +282,7 @@ report:
     printf(",\"entry_adapted\":%s,\"exec_context_requested\":%s",r.child.sm.entry_verified?"true":"false",r.child.sm.context_verified?"true":"false");
     fputs(",\"service_entry_sha256\":",stdout);json_string(pv_service_mode==2?SM_ENTRY_PATCHED_SHA:"");
     sm_json_exec(&r.child.exec);
+    printf(",\"thread_limit\":%d,\"observed_thread_peak\":%d,\"pthread_clone_flags\":%u",pv_service_mode==2?SM_MAX_THREADS:0,r.thread_peak,pv_service_mode==2?(unsigned)SM_THREAD_FLAGS:0);
     int fs_stage=r.child.sm.stage>=0&&r.child.sm.stage<(int)(sizeof(sm_fs_stages)/sizeof(sm_fs_stages[0]))?r.child.sm.stage:0;
     fputs(",\"service_filesystem_stage\":",stdout);json_string(sm_fs_stages[fs_stage]);
     fputs(",\"packaged_helper_sha256\":",stdout);json_string(pv_service_mode==2?PD_SM_CHECK_SHA:"");

@@ -620,8 +620,35 @@
       "full_launch_authorization": false
     },
     "service_smoke_preview": {
-      "state": "environment-passed-exec-denied",
+      "state": "guard-constructor-passed-thread-creation-denied",
       "last_observation": {
+        "stage": "guest_execution",
+        "child_stage": "exec",
+        "errno": 71,
+        "child_errno": 0,
+        "exit_code": 127,
+        "cleanup_errno": 0,
+        "guest_uid": 1000,
+        "guest_gid": 1000,
+        "capabilities_zero": true,
+        "no_new_privs": 1,
+        "filter_verified": 5,
+        "binder_private": true,
+        "selinux_view_verified": true,
+        "self_proc_only": true,
+        "packaged_helper_verified": true,
+        "service_domain_verified": false,
+        "entry_adapted": true,
+        "exec_context_requested": true,
+        "parent_unchanged": true,
+        "loops_released": true,
+        "temporary_directory_removed": true,
+        "host_enforcing_preserved": true,
+        "output": "PD2425_SM_ENV_OK\nlibc: pthread_create failed: clone failed: Operation not permitted\nlibc++abi: terminating due to uncaught exception of type NSt3__112system_errorE: thread constructor failed: Operation not permitted\nlibc++abi: terminating due to uncaught exception of type NSt3__112system_errorE: thread constructor failed: Operation not permitted\n",
+        "probe_version": "0.1.19-pd2425-service-entry",
+        "source_sha256": "c09ff5310f899a245bbb1dc2651c2253a7da06f2cd910828e65d5c56976b6ae7"
+      },
+      "previous_observation": {
         "stage": "guest_execution",
         "child_stage": "exec",
         "errno": 13,
@@ -644,7 +671,7 @@
         "probe_version": "0.1.18-pd2425-service-smoke",
         "source_sha256": "721ecc692c77b4f0ae2ef2d075083f1c88e316653f85ba1ccc5d3519369edf0d"
       },
-      "next_implementation": "0.1.19 native ELF entry with DT_NEEDED guard and kernel exec-context transition; device-unvalidated",
+      "next_implementation": "0.1.20 exact pthread-only clone flags, supervisor-observed thread limit; device-unvalidated",
       "full_launch_authorization": false
     }
   },
