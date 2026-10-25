@@ -100,6 +100,7 @@ print('PASS: GSI preview proof requires exact upstream image, capless UID, exec 
 
 service=copy.deepcopy(pv);service.update(component='service-loader-preview',target='/system/bin/servicemanager',service_main_executed=False,linkerconfig_readonly=True,bootstrap_linkerconfig_sha256=pin['service_loader_preview']['bootstrap_linkerconfig_sha256'],output='libbinder.so => /system/lib64/libbinder.so\nlibc.so => /apex/com.android.runtime/lib64/bionic/libc.so\n')
 r['self_tests']={'service_loader':service}
+assert 'report_contract' not in codes(r)
 assert review(r,p)['service_loader_passed'] and not review(r,p)['runtime_ready'] and not review(r,p)['gsi_shell_preview_passed']
 for field,value in [('target','/system/bin/sh'),('linkerconfig_readonly',False),('service_main_executed',True),('bootstrap_linkerconfig_sha256','wrong'),('parent_unchanged',False),('exit_code',1),('output',''),('component','gsi-preview')]:
  bad=copy.deepcopy(r);bad['self_tests']['service_loader'][field]=value;assert not review(bad,p)['service_loader_passed']
@@ -108,6 +109,7 @@ print('PASS: service loader binds target, read-only config digest, capless setup
 smoke=copy.deepcopy(service);smoke.update(component='service-smoke-preview',guest_uid=1000,guest_gid=1000,exit_code=-1,signal=9,service_main_executed=True,output='PD2425_SM_ENV_OK\n',bootstrap_linkerconfig_sha256=pin['service_smoke_preview']['bootstrap_linkerconfig_sha256'],service_filesystem_stage='complete',packaged_helper_sha256='a'*64,ping_errno=0)
 smoke_fields=['binder_private','selinux_view_verified','self_proc_only','packaged_helper_verified','service_domain_verified','process_identity_verified','context_manager_ping_passed','owned_stop','host_enforcing_preserved']
 smoke.update({k:True for k in smoke_fields});r['self_tests']={'service_smoke':smoke}
+assert 'report_contract' not in codes(r)
 assert review(r,p)['service_smoke_passed'] and not review(r,p)['runtime_ready']
 for field,value in [(k,False) for k in smoke_fields]+[('guest_uid',65534),('signal',0),('output',''),('ping_errno',1),('packaged_helper_sha256',''),('bootstrap_linkerconfig_sha256','wrong'),('service_main_executed',None),('loops_released',False)]:
  bad=copy.deepcopy(r);bad['self_tests']['service_smoke'][field]=value;assert not review(bad,p)['service_smoke_passed']

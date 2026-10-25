@@ -133,7 +133,7 @@ def review(report,profile):
     preview=tests.get('gsi_preview') if isinstance(tests,dict) else None
     if report.get('runtime_ready') is not False:issue('report_contract','Unexpected readiness claim')
     if report.get('no_device_changes') is not True:
-        if not (isinstance(cgtest,dict) or isinstance(nstest,dict) or isinstance(bstest,dict) or isinstance(rftest,dict) or isinstance(guardtest,dict) or isinstance(preview,dict)) or report.get('observations_read_only') is not True:issue('report_contract','Unrecognized non-read-only report')
+        if not (isinstance(cgtest,dict) or isinstance(nstest,dict) or isinstance(bstest,dict) or isinstance(rftest,dict) or isinstance(guardtest,dict) or isinstance(preview,dict) or (isinstance(tests,dict) and any(isinstance(tests.get(k),dict) for k in ['service_loader','service_smoke']))) or report.get('observations_read_only') is not True:issue('report_contract','Unrecognized non-read-only report')
     hardware=report.get('device')==profile['device'] and report.get('sdk')==str(profile['host_sdk']) and report.get('abi')=='arm64-v8a'
     host_match=hardware and report.get('fingerprint') in profile.get('accepted_host_fingerprints',[profile['fingerprint']])
     ota_exact=hardware and report.get('fingerprint')==profile['fingerprint']
