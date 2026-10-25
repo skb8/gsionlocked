@@ -8,6 +8,15 @@ static struct sock_filter pv_exec_filter[]={
     BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,arch)),
     BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,PD_GUARD_ARCH,1,0),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_KILL_PROCESS),
     BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,nr)),
+    /* Bionic main-thread initialization queries its inherited policy. Allow
+       read-only scheduler queries with pid=0 only, never scheduler setters. */
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_sched_getscheduler,1,0),
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_sched_getparam,0,6),
+    BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,args[0])),
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,0,0,3),
+    BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,args[0])+4),
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,0,0,1),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ALLOW),
+    BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|EPERM),
     /* prctl is limited to harmless anon-VMA naming (argument 1 checked too). */
     BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_prctl,0,6),
     BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,args[0])),

@@ -109,6 +109,13 @@ static int pv_loop_attach(int backing,uint64_t offset,uint64_t size,int *number,
 static int pv_loop_released(int n){struct pv_record record={0};int fd=pv_loop_node(n,O_RDONLY,&record);if(fd<0)return 0;struct loop_info64 info;int rc=ioctl(fd,LOOP_GET_STATUS64,&info),error=errno;close(fd);return rc<0&&error==ENXIO;}
 static int pv_zero_caps(void){struct __user_cap_header_struct h={.version=_LINUX_CAPABILITY_VERSION_3,.pid=0};struct __user_cap_data_struct d[2]={{0}};if(syscall(SYS_capget,&h,d))return 0;return !(d[0].effective|d[0].permitted|d[0].inheritable|d[1].effective|d[1].permitted|d[1].inheritable);}
 static int pv_limit(int resource,rlim_t value){struct rlimit r={value,value};return setrlimit(resource,&r);}
+static int pv_exec_guest(void){
+    /* Android's direct linker entry accepts PROGRAM, not glibc's
+       --library-path option. Supply a fixed path through its own environment. */
+    char *args[]={"/apex/com.android.runtime/bin/linker64","/system/bin/sh","-c","printf 'PD2425_GSI_SHELL_OK\\n'",NULL};
+    char *env[]={"PATH=/system/bin","HOME=/","ANDROID_ROOT=/system","ANDROID_RUNTIME_ROOT=/apex/com.android.runtime","LD_LIBRARY_PATH=/apex/com.android.runtime/lib64/bionic:/system/lib64",NULL};
+    return execve(args[0],args,env);
+}
 static void pv_worker(int image,int metadata,int output,int owner_fd,const char *target,const struct stat *parent_mnt,const struct stat *parent_net){
     struct pv_record r={.loops={-1,-1},.loop_preferred=-1,.loop_probe_number=-1,.loop_actual_major=-1,.loop_actual_minor=-1,.loop_expected_major=-1,.loop_expected_minor=-1};int loop[2]={-1,-1};char path[256],digest[65];
 #define PV_STEP(n,call) do{r.stage=n;if((call)<0){r.error=errno?errno:EIO;goto failed;}}while(0)
@@ -155,7 +162,7 @@ static void pv_worker(int image,int metadata,int output,int owner_fd,const char 
     /* This fixed record is from trusted setup. FD3 closes on exec, so guest
        stdout cannot forge privileged setup metadata. No arbitrary shell input. */
     if(write(metadata,&r,sizeof(r))!=(ssize_t)sizeof(r))_exit(42);
-    {char *args[]={"/apex/com.android.runtime/bin/linker64","--library-path","/apex/com.android.runtime/lib64/bionic:/system/lib64","/system/bin/sh","-c","printf 'PD2425_GSI_SHELL_OK\\n'",NULL};char *env[]={"PATH=/system/bin","HOME=/","ANDROID_ROOT=/system","ANDROID_RUNTIME_ROOT=/apex/com.android.runtime",NULL};execve(args[0],args,env);}
+    pv_exec_guest();
     r.error=errno;r.prepared=0;{ssize_t sent=write(metadata,&r,sizeof(r));(void)sent;}_exit(43);
 failed:
     {ssize_t sent=write(metadata,&r,sizeof(r));(void)sent;}_exit(40);

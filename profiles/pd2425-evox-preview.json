@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "state": "implemented-device-unvalidated",
+  "state": "owner-device-linker-executed-shell-pending",
   "mode": "headless-linker-shell",
   "full_android_boot": false,
   "hot_restore_required": false,
@@ -29,5 +29,6 @@
   "capabilities": "all zero",
   "policy": "preview default-deny seccomp; no fork/network/privilege/loop/ioctl in guest",
   "writes": "no partition or source-image writes; transient private mounts/loop attachments only",
-  "archive_bytes": 1160507536
+  "archive_bytes": 1160507536,
+  "linker_observation_sha256": "eebb5f9fa12215f9933d8cea881610eb8d5266bfe3149ecbd6cfcf8d61f444e1"
 }

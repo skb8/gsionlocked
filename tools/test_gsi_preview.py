@@ -15,9 +15,11 @@ source=r'''
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/vfs.h>
+static int test_execve(const char*,char *const[],char *const[]);
 static ssize_t test_read(int,void*,size_t);
 static int test_fstatfs(int,struct statfs*);
 static int test_open(const char*,int,...),test_fstat(int,struct stat*),test_ioctl(int,unsigned long,...),test_close(int);
+#define execve test_execve
 #define read test_read
 #define fstatfs test_fstatfs
 #define open test_open
@@ -27,6 +29,7 @@ static int test_open(const char*,int,...),test_fstat(int,struct stat*),test_ioct
 #define main preview_main
 #include "gsi_preview.c"
 #undef main
+#undef execve
 #undef read
 #undef fstatfs
 #undef open
@@ -36,6 +39,13 @@ static int test_open(const char*,int,...),test_fstat(int,struct stat*),test_ioct
 #include <assert.h>
 #include <stdarg.h>
 int __system_property_get(const char*k,char*v){(void)k;*v=0;return 0;}
+static int test_execve(const char *file,char *const args[],char *const env[]){
+ assert(!strcmp(file,"/apex/com.android.runtime/bin/linker64")&&!strcmp(args[0],file));
+ assert(!strcmp(args[1],"/system/bin/sh")&&!strcmp(args[2],"-c")&&!strcmp(args[3],"printf 'PD2425_GSI_SHELL_OK\\n'")&&!args[4]);
+ assert(!strcmp(env[0],"PATH=/system/bin")&&!strcmp(env[1],"HOME=/")&&!strcmp(env[2],"ANDROID_ROOT=/system")&&!strcmp(env[3],"ANDROID_RUNTIME_ROOT=/apex/com.android.runtime"));
+ assert(!strcmp(env[4],"LD_LIBRARY_PATH=/apex/com.android.runtime/lib64/bionic:/system/lib64")&&!env[5]);
+ errno=ENOEXEC;return -1;
+}
 static int loop_busy,wrong_device,configures,missing_control,missing_preferred,delay_preferred,denied_control,minor_shift,wrong_sysfs,sysfs_denied;
 static int test_open(const char *p,int flags,...){
  if(!strncmp(p,"/sys/devices/virtual/block/loop",30)){
@@ -80,6 +90,7 @@ static uint32_t eval(unsigned arch,unsigned nr,uint64_t *args){
 }
 int main(int argc,char **argv){
  if(argc>1)return preview_main(argc,argv);
+ assert(pv_exec_guest()==-1&&errno==ENOEXEC);
  dev_t parsed;assert(!pv_loop_parse("7:56\n",&parsed)&&major(parsed)==7&&minor(parsed)==56);
  const char *bad[]={"8:56\n","7:-1","7:1048576","4294967303:56","7:4294967352","7:56junk"," 7:56","7:56\nextra","7:"};
  for(unsigned n=0;n<sizeof(bad)/sizeof(bad[0]);n++)assert(pv_loop_parse(bad[n],&parsed)==EPROTO);
@@ -103,13 +114,24 @@ int main(int argc,char **argv){
  f=fopen(PV_TEST_PATH,"w+b");Elf64_Ehdr e={0};memcpy(e.e_ident,ELFMAG,4);e.e_ident[EI_CLASS]=ELFCLASS64;e.e_ident[EI_DATA]=ELFDATA2LSB;e.e_machine=EM_AARCH64;e.e_type=ET_DYN;e.e_ehsize=sizeof(e);assert(fwrite(&e,1,sizeof(e),f)==sizeof(e)&&!fflush(f));assert(!pv_elf64(fileno(f)));e.e_machine=EM_X86_64;assert(pwrite(fileno(f),&e,sizeof(e),0)==sizeof(e));assert(pv_elf64(fileno(f))==ENOEXEC);fclose(f);
  uint64_t args[6]={0};uint32_t deny=SECCOMP_RET_ERRNO|EPERM;
  assert(eval(PD_GUARD_ARCH,SYS_write,args)==SECCOMP_RET_ALLOW&&eval(PD_GUARD_ARCH^1,SYS_write,args)==SECCOMP_RET_KILL_PROCESS);
- unsigned denied[]={SYS_clone,SYS_fork,SYS_vfork,SYS_socket,SYS_kill,SYS_ptrace,SYS_bpf,SYS_mount,SYS_setresuid,SYS_reboot,SYS_ioctl,SYS_seccomp};
+ unsigned denied[]={SYS_clone,SYS_fork,SYS_vfork,SYS_socket,SYS_kill,SYS_ptrace,SYS_bpf,SYS_mount,SYS_setresuid,SYS_reboot,SYS_ioctl,SYS_seccomp,SYS_sched_setscheduler,SYS_sched_setparam,SYS_sched_setattr};
  for(unsigned n=0;n<sizeof(denied)/sizeof(denied[0]);n++)assert(eval(PD_GUARD_ARCH,denied[n],args)==deny);
+ unsigned scheduler_queries[]={SYS_sched_getscheduler,SYS_sched_getparam};
+ for(unsigned n=0;n<2;n++){
+  args[0]=0;assert(eval(PD_GUARD_ARCH,scheduler_queries[n],args)==SECCOMP_RET_ALLOW);
+  args[0]=1;assert(eval(PD_GUARD_ARCH,scheduler_queries[n],args)==deny);
+  args[0]=UINT64_C(1)<<32;assert(eval(PD_GUARD_ARCH,scheduler_queries[n],args)==deny);
+ }memset(args,0,sizeof(args));
  assert(eval(PD_GUARD_ARCH,SYS_openat,args)==SECCOMP_RET_ALLOW);args[2]=O_RDWR;assert(eval(PD_GUARD_ARCH,SYS_openat,args)==deny);args[2]=O_RDONLY|O_CREAT;assert(eval(PD_GUARD_ARCH,SYS_openat,args)==deny);
  memset(args,0,sizeof(args));assert(eval(PD_GUARD_ARCH,SYS_prlimit64,args)==SECCOMP_RET_ALLOW);args[2]=UINT64_C(1)<<32;assert(eval(PD_GUARD_ARCH,SYS_prlimit64,args)==deny);args[2]=0;args[0]=10;assert(eval(PD_GUARD_ARCH,SYS_prlimit64,args)==deny);
  memset(args,0,sizeof(args));args[0]=PR_SET_SECCOMP;assert(eval(PD_GUARD_ARCH,SYS_prctl,args)==deny);args[0]=0x53564d41U;assert(eval(PD_GUARD_ARCH,SYS_prctl,args)==SECCOMP_RET_ALLOW);args[1]=1;assert(eval(PD_GUARD_ARCH,SYS_prctl,args)==deny);
  memset(args,0,sizeof(args));args[1]=F_GETFD;assert(eval(PD_GUARD_ARCH,SYS_fcntl,args)==SECCOMP_RET_ALLOW);args[1]=F_SETOWN;assert(eval(PD_GUARD_ARCH,SYS_fcntl,args)==deny);args[1]=F_SETFL;assert(eval(PD_GUARD_ARCH,SYS_fcntl,args)==deny);
- pid_t p=fork();assert(p>=0);if(!p){if(pv_install_filter()||pv_test_filter())_exit(50);_exit(0);}int status;assert(waitpid(p,&status,0)==p&&WIFEXITED(status)&&WEXITSTATUS(status)==0);assert(kill(getpid(),0)==0);
+ pid_t p=fork();assert(p>=0);if(!p){if(pv_install_filter()||pv_test_filter())_exit(50);
+  struct sched_param param={0};
+  if(syscall(SYS_sched_getscheduler,0)<0||syscall(SYS_sched_getparam,0,&param)<0)_exit(51);
+  errno=0;if(syscall(SYS_sched_getscheduler,getppid())!=-1||errno!=EPERM)_exit(52);
+  errno=0;if(syscall(SYS_sched_setscheduler,0,SCHED_OTHER,&param)!=-1||errno!=EPERM)_exit(53);
+  _exit(0);}int status;assert(waitpid(p,&status,0)==p&&WIFEXITED(status)&&WEXITSTATUS(status)==0);assert(kill(getpid(),0)==0);
  return 0;
 }
 '''
