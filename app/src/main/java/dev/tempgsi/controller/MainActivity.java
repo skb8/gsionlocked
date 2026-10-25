@@ -196,6 +196,7 @@ public final class MainActivity extends Activity {
         task("Importing GSI…",()->{
             GsiStore.Image image=GsiStore.read(this,uri,this::appendLog,this::isDestroyed);
             runOnUiThread(()->select(image.name,image.sha256));
+            if(HostIdentity.isPd2425(Build.DEVICE))return Pd2425Diagnostics.PREVIEW_SHA.equals(image.sha256)?"Образ совпал с чистым EvoX для preview. Нажмите «Запустить linker/sh из GSI». Полный Android пока не готов.":"Образ импортирован. Для preview нужен EvoX 11.11 arm64-ab VANILLA от 20.09.2026.";
             return DeviceProfile.SHA256.equals(image.sha256)?"Image matches the tested EvoX profile.":"Image imported. No tested runtime profile supports this image yet.";
         });
     }
