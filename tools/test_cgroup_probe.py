@@ -7,12 +7,23 @@ with tempfile.TemporaryDirectory() as temp:
     d=Path(temp);generate_services(d);(d/'sys').mkdir()
     (d/'sys/system_properties.h').write_text('#define PROP_VALUE_MAX 92\nint __system_property_get(const char *,char *);\n')
     source=r'''
+#define _GNU_SOURCE
+#include <unistd.h>
+static long test_syscall(long,...);
+#define syscall(...) test_syscall(__VA_ARGS__)
 #define main probe_main
 #include "preflight.c"
 #undef main
+#undef syscall
 #include <assert.h>
+#include <stdarg.h>
 #include <sys/mman.h>
 int __system_property_get(const char *key,char *value){(void)key;*value=0;return 0;}
+static long test_syscall(long request,...){
+ va_list args;va_start(args,request);
+ if(request==SYS_clone){int flags=va_arg(args,int);assert(flags==(CLONE_NEWPID|SIGCHLD));va_end(args);errno=EPERM;return -1;}
+ assert(request==SYS_pidfd_open);pid_t pid=va_arg(args,int);int flags=va_arg(args,int);va_end(args);return syscall(request,pid,flags);
+}
 struct fake {pid_t children[2];int count,created,removed,kills,fail,checked,report[2];volatile int *started;};
 static int create(void *ctx){struct fake *f=ctx;if(f->fail==1)return EACCES;f->created=1;return 0;}
 static int add(void *ctx,pid_t child){
@@ -21,8 +32,9 @@ static int add(void *ctx,pid_t child){
 }
 static int members(void *ctx,const pid_t *children){
  struct fake *f=ctx;assert(f->count==2&&children[0]==f->children[0]&&children[1]==f->children[1]);
- if(f->started)assert(*f->started==0);
- f->checked=1;
+ if(f->started&&!f->checked)assert(*f->started==0);
+ f->checked++;
+ if(f->fail==7&&f->checked==2)return EBUSY;
  return f->fail==3?EBUSY:0;
 }
 static int populated(void *ctx){struct fake *f=ctx;return f->count&&!f->kills?1:0;}
@@ -57,18 +69,21 @@ int main(void){
   if(failure<=3&&failure)assert(f.kills==0);
   if(failure==5)assert(result.cleanup_errno==EBUSY);
  }
- for(int mode=0;mode<3;mode++){
+ for(int mode=0;mode<4;mode++){
   volatile int *started=mmap(NULL,sizeof(int),PROT_READ|PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,0);assert(started!=MAP_FAILED);*started=0;
-  struct fake f={.fail=mode==1?6:mode==2?3:0,.started=started,.report={-1,-1}};assert(pipe2(f.report,O_CLOEXEC)==0);
+  struct fake f={.fail=mode==1?6:mode==2?3:mode==3?7:0,.started=started,.report={-1,-1}};assert(pipe2(f.report,O_CLOEXEC)==0);
   struct pd_cgroup_ops ops={.create=create,.add=add,.members=members,.populated=populated,.kill_group=group_kill,.remove_group=remove_group,.context=&f,.child_task=child_work,.inspect_children=inspect};struct pd_cgroup_result result;
   struct sigaction before,after_pipe;assert(sigaction(SIGPIPE,NULL,&before)==0);
   int rc=pd_cgroup_run(&ops,&result);assert(sigaction(SIGPIPE,NULL,&after_pipe)==0&&before.sa_handler==after_pipe.sa_handler);
   assert(f.removed&&result.spawned==result.reaped&&kill(sentinel,0)==0);
-  if(!mode)assert(rc==0&&f.kills==1&&*started==3);
+  if(!mode)assert(rc==0&&f.kills==1&&*started==3&&f.checked==2);
   else assert(rc==40&&f.kills==0);
   if(mode==2)assert(*started==0); // No work before exact membership verification.
   assert(munmap((void*)started,sizeof(int))==0);
  }
+ struct fake denied={0};struct pd_cgroup_ops pidops={.create=create,.add=add,.members=members,.populated=populated,.kill_group=group_kill,.remove_group=remove_group,.context=&denied,.child_task=child_work,.inspect_children=inspect,.new_pid_namespace=1};struct pd_cgroup_result rejected;
+ assert(pd_cgroup_run(&pidops,&rejected)==40&&rejected.error==EPERM&&!strcmp(rejected.stage,"clone_pid_namespace")&&denied.created&&denied.removed&&!denied.kills&&rejected.spawned==0);
+ pidops.child_task=NULL;memset(&denied,0,sizeof(denied));assert(pd_cgroup_run(&pidops,&rejected)==40&&rejected.error==EINVAL&&!denied.created&&denied.removed);
  struct sigaction ignored={0},old,after;ignored.sa_handler=SIG_IGN;sigemptyset(&ignored.sa_mask);assert(sigaction(SIGCHLD,&ignored,&old)==0);
  struct fake f={0};struct pd_cgroup_ops ops={.create=create,.add=add,.members=members,.populated=populated,.kill_group=group_kill,.remove_group=remove_group,.context=&f};struct pd_cgroup_result result;
  assert(pd_cgroup_run(&ops,&result)==0&&result.reaped==2);assert(sigaction(SIGCHLD,NULL,&after)==0&&after.sa_handler==SIG_IGN);

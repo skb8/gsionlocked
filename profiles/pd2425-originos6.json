@@ -337,5 +337,14 @@
         "scope": "0.1.6 stops at duplicate Binder name; not complete isolation or launch validation"
       }
     }
+  },
+  "experimental_components": {
+    "pid_proc_rootfs_scaffold": {
+      "state": "implemented-device-unvalidated",
+      "probe_version": "0.1.8-pd2425-bootstrap-probe",
+      "command": "--test-bootstrap",
+      "scope": "two trusted inert PID1 children, private read-only proc/tmpfs rootfs; no GSI/Android init or untrusted sandbox",
+      "launch_authorization": false
+    }
   }
 }

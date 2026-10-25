@@ -36,6 +36,9 @@ final class Pd2425Diagnostics {
     static String collectWithIsolationTest(Context context)throws Exception {
         return collectWithTest(context,"--test-isolation","namespace-self-test","namespaces");
     }
+    static String collectWithBootstrapTest(Context context)throws Exception {
+        return collectWithTest(context,"--test-bootstrap","bootstrap-self-test","bootstrap");
+    }
     private static String collectWithTest(Context context,String argument,String component,String field)throws Exception {
         JSONObject base=run(context,"--diagnose-json","apk-probe",3,true);
         JSONObject tests=new JSONObject();

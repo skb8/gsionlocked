@@ -2,6 +2,7 @@
 #ifndef PD2425_CGROUP_TEST_H
 #define PD2425_CGROUP_TEST_H
 #include <poll.h>
+#include <sched.h>
 #include <signal.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
@@ -12,6 +13,7 @@ struct pd_cgroup_ops {
     int (*create)(void*);int (*add)(void*,pid_t);int (*members)(void*,const pid_t*);
     int (*populated)(void*);int (*kill_group)(void*);int (*remove_group)(void*);void *context;
     void (*child_task)(void*,int);int (*inspect_children)(void*,const pid_t*);
+    int new_pid_namespace; /* Trusted dedicated probe only; never arbitrary guest code. */
 };
 struct pd_cgroup_result {const char *stage;int error,cleanup_errno,spawned,pidfds,membership_verified,kill_succeeded,drained,reaped;};
 static int pd_wait_pidfd(int fd,int milliseconds) {
@@ -21,15 +23,33 @@ static int pd_wait_pidfd(int fd,int milliseconds) {
     if(!rc)return ETIMEDOUT;
     return ready.revents&POLLIN?0:EIO;
 }
+static pid_t pd_pid_namespace_fork(void) {
+#ifdef __BIONIC__
+    /* Bionic explicitly supports NULL fn/stack fork-like clone and invalidates
+       its cached pid/tid. A raw clone syscall would leave stale libc TLS. */
+    return clone(NULL,NULL,CLONE_NEWPID|SIGCHLD,NULL);
+#elif defined(__x86_64__)
+    /* glibc host-only path for syscall fault injection; no CLONE_VM. */
+    return (pid_t)syscall(SYS_clone,CLONE_NEWPID|SIGCHLD,NULL,NULL,NULL,0);
+#else
+    errno=ENOTSUP;return -1;
+#endif
+}
 /* Dedicated single-thread probe process: no other thread may reap its children. */
 static int pd_cgroup_run(const struct pd_cgroup_ops *ops,struct pd_cgroup_result *result) {
     pid_t children[2]={-1,-1};int fds[2]={-1,-1},gates[2][2]={{-1,-1},{-1,-1}};memset(result,0,sizeof(*result));
-    struct sigaction old_chld,normal={0};normal.sa_handler=SIG_DFL;sigemptyset(&normal.sa_mask);int changed_chld=0,changed_pipe=0;struct sigaction old_pipe;
+    struct sigaction old_chld,normal={0};normal.sa_handler=SIG_DFL;sigemptyset(&normal.sa_mask);int changed_chld=0,changed_pipe=0,owner_fd=-1;struct sigaction old_pipe;
     result->stage="sigchld";
     if(sigaction(SIGCHLD,&normal,&old_chld)){result->error=errno;goto cleanup;}changed_chld=1;
     if(ops->child_task){
         struct sigaction ignored={0};ignored.sa_handler=SIG_IGN;sigemptyset(&ignored.sa_mask);
         result->stage="sigpipe";if(sigaction(SIGPIPE,&ignored,&old_pipe)){result->error=errno;goto cleanup;}changed_pipe=1;
+    }
+    if(ops->new_pid_namespace){
+        result->stage="owner_pidfd";
+        if(!ops->child_task){result->error=EINVAL;goto cleanup;}
+        owner_fd=(int)syscall(SYS_pidfd_open,getpid(),0);
+        if(owner_fd<0){result->error=errno;goto cleanup;}
     }
     result->stage="create";result->error=ops->create(ops->context);if(result->error)goto cleanup;
     result->stage="initial_empty";
@@ -37,14 +57,21 @@ static int pd_cgroup_run(const struct pd_cgroup_ops *ops,struct pd_cgroup_result
     if(initial!=0){result->error=initial<0?(errno?errno:EPROTO):EBUSY;goto cleanup;}
     for(int i=0;i<2;i++) {
         if(ops->child_task){result->stage="child_gate";if(pipe2(gates[i],O_CLOEXEC)){result->error=errno;goto cleanup;}}
-        result->stage="fork";pid_t owner=getpid();children[i]=fork();
+        result->stage=ops->new_pid_namespace?"clone_pid_namespace":"fork";pid_t owner=getpid();
+        children[i]=ops->new_pid_namespace?pd_pid_namespace_fork():fork();
         if(children[i]<0){result->error=errno;goto cleanup;}
         if(!children[i]) {
-            if(prctl(PR_SET_PDEATHSIG,SIGKILL)||getppid()!=owner)_exit(111);
+            if(prctl(PR_SET_PDEATHSIG,SIGKILL))_exit(111);
+            /* PID 1 sees getppid()==0. An inherited owner pidfd closes the
+               before-prctl death race without relying on its invisible PID. */
+            if(ops->new_pid_namespace){if(getpid()!=1||pd_wait_pidfd(owner_fd,0)!=ETIMEDOUT)_exit(111);}
+            else if(getppid()!=owner)_exit(111);
             if(ops->child_task){
                 for(int n=0;n<2;n++)for(int end=0;end<2;end++)if(gates[n][end]>=0&&(n!=i||end!=0))close(gates[n][end]);
                 char go=0;ssize_t n;do{n=read(gates[i][0],&go,1);}while(n<0&&errno==EINTR);
-                close(gates[i][0]);if(n!=1||go!='G'||getppid()!=owner)_exit(112);
+                close(gates[i][0]);if(n!=1||go!='G')_exit(112);
+                if(ops->new_pid_namespace){if(pd_wait_pidfd(owner_fd,0)!=ETIMEDOUT)_exit(112);close(owner_fd);}
+                else if(getppid()!=owner)_exit(112);
                 ops->child_task(ops->context,i);
             }else {close(0);close(1);close(2);}
             for(;;)pause();
@@ -69,6 +96,10 @@ static int pd_cgroup_run(const struct pd_cgroup_ops *ops,struct pd_cgroup_result
         }
     }
     if(ops->inspect_children){result->stage="inspect_owned_children";result->error=ops->inspect_children(ops->context,children);if(result->error)goto cleanup;}
+    /* Workers may run for seconds: verify the exact owned pair again before
+       group kill. A changed/foreign member always takes own-PID cleanup. */
+    result->stage="recheck_exact_members";result->error=ops->members(ops->context,children);if(result->error)goto cleanup;
+    for(int i=0;i<2;i++)if(pd_wait_pidfd(fds[i],0)!=ETIMEDOUT){result->error=ECHILD;goto cleanup;}
     result->stage="cgroup.kill";result->error=ops->kill_group(ops->context);if(result->error)goto cleanup;
     result->kill_succeeded=1;
     result->stage="wait_for_children";
@@ -97,6 +128,7 @@ cleanup:
         if(!reaped&&!result->cleanup_errno)result->cleanup_errno=ETIMEDOUT;
     }
     for(int i=0;i<2;i++)if(fds[i]>=0)close(fds[i]);
+    if(owner_fd>=0)close(owner_fd);
     int remove_error=ops->remove_group(ops->context);if(remove_error)result->cleanup_errno=remove_error;
     if(changed_pipe&&sigaction(SIGPIPE,&old_pipe,NULL))result->cleanup_errno=errno;
     if(changed_chld&&sigaction(SIGCHLD,&old_chld,NULL))result->cleanup_errno=errno;

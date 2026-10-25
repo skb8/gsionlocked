@@ -57,3 +57,14 @@ for field,value in [('fingerprint','unknown/device/fingerprint'),('sdk','35'),('
     result=review(bad,p)
     assert not result['namespace_test_passed'] and not result['cgroup_kill_child_test_passed'] and not result['runtime_ready']
 print('PASS: nested test cannot override host, API, root or Enforcing gates')
+
+bs=copy.deepcopy(t);bs.update(component='bootstrap-self-test',parent_checked=True,parent_unchanged=True,temporary_directory_removed=True,parent_pid_namespace={'device':5,'inode':10},parent_mount_namespace={'device':5,'inode':20},parent_root={'device':10,'inode':1})
+bs['children']=[{'index':i,'reported':True,'errno':0,'stage':'complete','pid':1,'ppid':0,'proc_self_pid':1,'proc_pid_count':1,'root_read_only':True,'proc_read_only':True,'inherited_fds_closed':True,'pid_namespace':{'device':5,'inode':50+i},'mount_namespace':{'device':5,'inode':100+i},'root':{'device':500+i,'inode':1}} for i in range(2)]
+r['self_tests']={'bootstrap':bs}
+assert review(r,p)['bootstrap_test_passed'] and review(r,p)['cgroup_kill_child_test_passed'] and not review(r,p)['namespace_test_passed'] and not review(r,p)['runtime_ready']
+for field,value in [('proc_pid_count',2),('pid',2),('ppid',1),('proc_self_pid',9),('inherited_fds_closed',False),('root_read_only',False),('proc_read_only',False),('pid_namespace',{'device':5,'inode':10}),('mount_namespace',{'device':5,'inode':20}),('root',{'device':500,'inode':1})]:
+    bad=copy.deepcopy(r);bad['self_tests']['bootstrap']['children'][1][field]=value
+    assert not review(bad,p)['bootstrap_test_passed'] and 'bootstrap_test_not_passed' in codes(bad)
+for field,value in [('uid',2000),('selinux_enforce',{'errno':0,'value':'0'}),('sdk','35')]:
+    bad=copy.deepcopy(r);bad[field]=value;assert not review(bad,p)['bootstrap_test_passed']
+print('PASS: bootstrap proof requires private PID1/proc/rootfs, FD closure, original host/root/Enforcing and cleanup')

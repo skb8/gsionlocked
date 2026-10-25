@@ -108,6 +108,15 @@ public final class MainActivity extends Activity {
                     return "Отчёт готов. Сохраните JSON. Службы OriginOS и штатный Binder не переключались.";
                 });
             }));
+            buttons.add(Ui.button(page,"Тест PID/proc/rootfs",false,()->{
+                if(busy)return;
+                if(inside){status.setText("Проверяйте bootstrap в OriginOS.");return;}
+                pd2425Report=null;
+                task("Проверка двух PID 1 с отдельным proc и пустым rootfs…",()->{
+                    pd2425Report=Pd2425Diagnostics.collectWithBootstrapTest(this);
+                    return "Отчёт готов. Сохраните JSON. Android init и GSI не запускались.";
+                });
+            }));
             buttons.add(Ui.button(page,"Сохранить root-отчёт",false,()->{
                 if(busy)return;
                 if(pd2425Report==null){status.setText("Сначала соберите Root-отчёт PD2425.");return;}

@@ -1,7 +1,7 @@
 # PD2425 diagnostic port
 
 OTA-analyzed; host identities, own-child cgroup.kill and root-only mount/network/BinderFS probe tested on PD2425. **Not a runnable GSI environment.**
-The preflight executables accept --check-host / --diagnose / --diagnose-json and explicit --test-cgroup / --test-isolation.
+The preflight executables accept --check-host / --diagnose / --diagnose-json and explicit --test-cgroup / --test-isolation / --test-bootstrap.
 For observation modes exit 0 means an exact allowlisted host identity, never readiness; exit 31 means mismatch;
 78 rejects unsupported operations. Reports always contain runtime_ready=0.
 Observation modes do not write. Observation modes never mount, control host services, change SELinux or open watchdog devices. The explicit cgroup test only creates/migrates/kills its own two children in a fresh group and removes it. The separate --test-isolation mode mounts tmpfs/BinderFS only inside those children's private mount namespaces.
@@ -67,3 +67,17 @@ PIDs, namespace inode numbers, boot IDs or the raw report. Repeating this probe
 is not required for this same setup. This is not a guest boot or a host handoff.
 The reviewer accepts a self-test proof only with the outer exact host, UID 0 and
 SELinux Enforcing observations as well as the complete nested result.
+
+
+0.1.8 adds --test-bootstrap: two direct CLONE_NEWPID children, each inert PID 1,
+with private read-only tmpfs root and private read-only proc. No grandchildren,
+Android init, imported GSI or shell executes. Bionic's fork-like clone wrapper
+maintains libc pid/tid caches; an inherited owner pidfd protects the parent-death
+race when getppid is zero. Both children wait for cgroup ownership verification.
+All inherited FDs except a write-only result pipe close before chroot. The test
+verifies PID1/proc membership, filesystem type/flags, absence of host paths,
+independent namespaces/roots and unchanged parent observations. Deadline: 25 s.
+A second exact-membership check precedes group kill in every explicit test.
+Failure cleanup never group-kills a changed group, only unreaped owned children.
+The inert scaffold is device-unvalidated and is not an untrusted-code sandbox.
+No launch authorization or hardware handoff is provided. See the Russian guide.
