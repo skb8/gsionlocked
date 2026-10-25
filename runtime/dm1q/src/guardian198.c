@@ -193,7 +193,12 @@ static int drain_pause160(void *opaque){
     while(nanosleep(&remaining,&remaining))if(errno!=EINTR)return -1;
     return 0;
 }
+#include "../../common/host_guard.h"
 int main(int argc,char **argv){
+    if(require_dm1q_host())return 31;
+    if(argc==2&&!strcmp(argv[1],"--check-host")){
+        puts("DM1Q_HOST_MATCH_NO_CHANGES");return 0;
+    }
     setbuf(stdout,NULL);
     if(argc==2&&!strcmp(argv[1],"--self-test-thermal")){
         if(getuid()!=0)return 2;

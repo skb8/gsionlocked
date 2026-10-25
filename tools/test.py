@@ -11,3 +11,7 @@ with tempfile.TemporaryDirectory(prefix='gsionlocked-test-') as output:
     subprocess.run([runtime,'-cp',output,'GsiFormatTest'],check=True)
     subprocess.run([javac,'-encoding','UTF-8','-d',output,str(ROOT/'app/src/main/java/dev/tempgsi/controller/RuntimeProfile.java'),str(ROOT/'tests/RuntimeProfileTest.java')],check=True)
     subprocess.run([runtime,'-cp',output,'RuntimeProfileTest'],check=True)
+
+with tempfile.TemporaryDirectory(prefix='gsionlocked-host-test-') as output:
+    subprocess.run([javac,'-encoding','UTF-8','-d',output,str(ROOT/'app/src/main/java/dev/tempgsi/controller/HostIdentity.java'),str(ROOT/'tests/HostIdentityTest.java')],check=True)
+    subprocess.run([runtime,'-cp',output,'HostIdentityTest'],check=True)

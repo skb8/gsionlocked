@@ -36,6 +36,12 @@ public final class EvoxWork198 {
         return ()->{policyCommand("1");System.out.println("WORK_SELINUX_ORIGINAL_ENFORCING_RESTORED");};
     }
     public static void main(String[] args)throws Exception{
+        // Protect direct app_process invocation before policy/data changes.
+        if(!hostQuery("/system/bin/getprop","ro.product.model").equals("SM-S911B") ||
+           !hostQuery("/system/bin/getprop","ro.product.device").equals("dm1q") ||
+           !hostQuery("/system/bin/getprop","ro.build.version.sdk").equals("36") ||
+           !hostQuery("/system/bin/getprop","ro.bootloader").equals("S911BXXSAFZG1"))
+            throw new IOException("REFUSE_DM1Q_HOST_MISMATCH_NO_CHANGES; PD2425 port is diagnostic only");
         boolean mobileUnlimited=args.length>=1&&args[0].equals("--stay-in-lineage-mobile145");
         boolean mobile=mobileUnlimited||(args.length>=1&&args[0].equals("--test-lineage-mobile143"));
         boolean radio=mobile||(args.length>=1&&args[0].equals("--test-lineage-radio"));

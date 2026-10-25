@@ -799,7 +799,12 @@ static int probe_isolated_services(int systemserver){
     printf("PRIVATE_SERVICE_MANAGER_RESULT=%d\n",result);
     puts("PRIVATE_SERVICE_MANAGER_STOPPED_HOST_SERVICES_UNCHANGED");return result;
 }
+#include "../../common/host_guard.h"
 int main(int argc,char **argv){
+    if(require_dm1q_host())return 31;
+    if(argc==2&&!strcmp(argv[1],"--check-host")){
+        puts("DM1Q_HOST_MATCH_NO_CHANGES");return 0;
+    }
     char path[512];int shell_result,sf_result,app_result,vm_result,jni_result,zygote_result;
     if((argc<3||argc>12) || strncmp(argv[1],"/dev/block/",11) || strcmp(argv[2],"/data/local/tmp/tempgsi-evox154/runtime"))return 2;
     physical_display=argc>=4&&!strcmp(argv[3],"--isolated-display-lease");

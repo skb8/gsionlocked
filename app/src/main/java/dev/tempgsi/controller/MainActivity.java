@@ -66,6 +66,18 @@ public final class MainActivity extends Activity {
                 return "Session launched. Output: /data/local/tmp/tempgsi-control/latest.log";
             });
         }));
+        if(HostIdentity.isPd2425(Build.DEVICE)) {
+            status.setText("PD2425: диагностика доступна; запуск GSI пока не поддерживается.");
+            buttons.add(Ui.button(page,"Диагностика PD2425",false,()->task("Чтение сведений…",()->{
+                String abi=Build.SUPPORTED_ABIS.length==0?"":Build.SUPPORTED_ABIS[0];
+                String report="Устройство: "+Build.DEVICE+" / "+Build.MODEL+"\nAPI: "+Build.VERSION.SDK_INT+
+                    "\nABI: "+abi+"\nFingerprint: "+Build.FINGERPRINT+
+                    "\nСовпадение с OTA: "+HostIdentity.matchesPd2425(Build.DEVICE,Build.VERSION.SDK_INT,abi,Build.FINGERPRINT)+
+                    "\nRuntime готов: нет.\nПроверка root: отдельной кнопкой.\nИзменений хоста не выполнялось.";
+                runOnUiThread(()->new AlertDialog.Builder(this).setTitle("PD2425 — диагностика").setMessage(report).setPositiveButton("OK",null).show());
+                return "Диагностика завершена. Совпадение OTA не подтверждает совместимость runtime.";
+            })));
+        }
         buttons.add(Ui.button(page,"Storage",false,this::chooseMemory));Ui.space(page,18);
         TextView channel=Ui.text(page,"t.me/gsionlocked",14,Ui.TEXT);channel.setGravity(Gravity.CENTER);channel.setPaintFlags(channel.getPaintFlags()|android.graphics.Paint.UNDERLINE_TEXT_FLAG);channel.setPadding(0,Ui.dp(this,12),0,Ui.dp(this,12));channel.setMinHeight(Ui.dp(this,48));channel.setContentDescription("Open gsionlocked Telegram channel");channel.setOnClickListener(v->{try{startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,android.net.Uri.parse("https://t.me/gsionlocked")));}catch(android.content.ActivityNotFoundException e){status.setText("Install Telegram or a browser to open this link.");}});
         launchPanel=Ui.card(page);Ui.text(launchPanel,"Launch output",14,Ui.TEXT);

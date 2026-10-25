@@ -21,11 +21,22 @@ jobs:
       - run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;25.2.9519653"
       - run: python tools/audit_public.py
       - run: python tools/test.py
-      - run: python tools/build_app.py --ndk "$ANDROID_HOME/ndk/25.2.9519653"
+      - run: python tools/test_pd2425.py
+      - run: python tools/build_app.py --debug --ndk "$ANDROID_HOME/ndk/25.2.9519653"
+      - run: python tools/build_runtime.py --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME"
       - uses: actions/upload-artifact@v4
         with:
-          name: gsionlocked-unsigned
-          path: dist/gsionlocked-unsigned.apk
+          name: public-runtime-components
+          path: dist/runtime/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: runtime-build-logs
+          path: build/runtime/*.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gsionlocked-pd2425-diagnostics
+          path: dist/gsionlocked.apk
       - run: python tools/package_source.py
       - uses: actions/upload-artifact@v4
         with:

@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "id": "pd2425-originos6-diagnostics",
+  "device": "PD2425",
+  "model": "V2425A",
+  "soc": "SM8650",
+  "host_sdk": 36,
+  "firmware": "PD2425_A_16.1.17.10.W10.V000L1",
+  "fingerprint": "vivo/PD2425/PD2425:16/BP2A.250605.031.A3/compiler260917174806:user/release-keys",
+  "state": "ota-analyzed-device-unvalidated",
+  "launch_enabled": false,
+  "runtime_bootstrap": "not-implemented",
+  "root": "user-provided GhostLock + KernelSU LKM; not exercised",
+  "ota": {
+    "url": "https://sysupdxdl.vivo.com.cn/upgrade/oem/files/202609180149266c70592bcff78e4b2dc379b7a8aef287.zip",
+    "bytes": 9575220448,
+    "sha256": "71dfe87b5d482553767f84482a6e5e1208f0160f2b33abbc516a043dac8601b4",
+    "format": "ZIP64 / full A/B payload v2",
+    "payload_sha256_base64": "6u1At1Ypo0nQsGCKhecIuGrNs0kjGIChFZDbi4WYgm4="
+  },
+  "vendor": {
+    "sdk": 34,
+    "sepolicy_version": "34.0",
+    "vintf_target_level": "8"
+  },
+  "services": [
+    {
+      "name": "vendor.qti.hardware.display.composer",
+      "executable": "/vendor/bin/hw/vendor.qti.hardware.display.composer-service",
+      "source": "vendor/etc/init/vendor.qti.hardware.display.composer-service.rc"
+    },
+    {
+      "name": "vendor.audio-hal",
+      "executable": "/vendor/bin/hw/android.hardware.audio.service_64",
+      "source": "vendor/etc/init/android.hardware.audio.service_64.rc"
+    },
+    {
+      "name": "vendor.power",
+      "executable": "/vendor/bin/hw/android.hardware.power-service",
+      "source": "vendor/etc/init/android.hardware.power-service.rc"
+    },
+    {
+      "name": "vendor.qti.light",
+      "executable": "/vendor/bin/hw/vendor.qti.hardware.lights.service",
+      "source": "vendor/etc/init/vendor.qti.hardware.lights.service.rc"
+    },
+    {
+      "name": "vendor.health-default",
+      "executable": "/vendor/bin/hw/android.hardware.health-service.qti",
+      "source": "vendor/etc/init/android.hardware.health-service.qti.rc"
+    },
+    {
+      "name": "vendor.camera-provider",
+      "executable": "/vendor/bin/hw/vendor.qti.camera.provider-service_64",
+      "source": "vendor/etc/init/vendor.qti.camera.provider-service_64.rc"
+    },
+    {
+      "name": "biometrics-fingerprint",
+      "executable": "/vendor/bin/hw/vendor.vivo.hardware.biometrics.fingerprint-service",
+      "source": "vendor/etc/init/vendor.vivo.hardware.biometrics.fingerprint-service.rc"
+    },
+    {
+      "name": "vendor.gatekeeper_default",
+      "executable": "/vendor/bin/hw/android.hardware.gatekeeper-service-qti",
+      "source": "vendor/etc/init/android.hardware.gatekeeper-service-qti.rc"
+    },
+    {
+      "name": "vendor.gatekeeper_spu",
+      "executable": "/vendor/bin/hw/android.hardware.gatekeeper-service-spu-qti",
+      "source": "vendor/etc/init/android.hardware.gatekeeper-service-spu-qti.rc"
+    }
+  ],
+  "services_evidence": "Offline declarations only; gatekeeper variants require live selection. Not instructions for service control.",
+  "blocked_on": [
+    "display/input ownership and exact restore",
+    "live watchdog owner/driver/timeout/restore contract",
+    "effective SELinux policy and enforcing guest support",
+    "complete GSI/APEX/shim/bootstrap dependencies",
+    "device validation of HAL/Binder/cgroup/network/root"
+  ]
+}
