@@ -384,14 +384,14 @@
       "interpretation": "PID namespace entry absent; CONFIG_PID_NS disabled is a hypothesis, not a verified kernel config"
     },
     "gsi_linker_shell_preview": {
-      "state": "owner-device-linker-executed-shell-pending-invocation-fix",
+      "state": "owner-device-linker-loading-libc-shell-pending-fstatfs-policy-fix",
       "profile": "profiles/pd2425-evox-preview.json",
       "command": "pd2425-gsi-preview --preview-gsi IMAGE",
       "scope": "exact unmodified upstream EvoX linker/shell with UID65534, zero capabilities, default-deny policy; no Android framework or HAL",
       "full_launch_authorization": false,
       "last_observation": {
-        "source_sha256": "eebb5f9fa12215f9933d8cea881610eb8d5266bfe3149ecbd6cfcf8d61f444e1",
-        "probe_version": "0.1.13-pd2425-loop-identity",
+        "source_sha256": "21065fe823d0f4f3efed9f14d11522c45783d987b995c025eb569a7513f37925",
+        "probe_version": "0.1.14-pd2425-linker-invocation",
         "image_sha256": "2a0bd888510fe3415fbdcebb719c2a99d32801f09ad001333e429f6ebc7e9d3e",
         "child_stage": "exec",
         "child_errno": 0,
@@ -418,7 +418,8 @@
         "temporary_directory_removed": true,
         "guest_linker_executed": true,
         "guest_shell_passed": false,
-        "interpretation": "Pinned GSI linker produced invalid direct-invocation option error. Image/runtime mounted and capless seccomp setup completed. minor=368 for loop46 confirms hardcoded minor==index was invalid. Android linker invocation and self-only scheduler queries fixed for next test; full Android remains unauthorized."
+        "failure": "linker loading libc.so: fstatfs EPERM; missing generated linkerconfig warning also present",
+        "interpretation": "Corrected invocation reached libc loading; prior scheduler warning absent. Read-only fstatfs was missing from the explicit allowlist. Narrow descriptor/self-query policy additions implemented; shell/full Android success not claimed."
       },
       "previous_observations": [
         {
@@ -453,6 +454,37 @@
           "temporary_directory_removed": true,
           "guest_code_executed": false,
           "interpretation": "Control opened and GET_FREE succeeded; node open/fstat or hardcoded minor validation failed before LOOP_CONFIGURE. max_part minor shift is a hypothesis, not an observed kernel parameter. Exact sysfs loop device identity and operation/rdev diagnostics implemented for retest."
+        },
+        {
+          "source_sha256": "eebb5f9fa12215f9933d8cea881610eb8d5266bfe3149ecbd6cfcf8d61f444e1",
+          "probe_version": "0.1.13-pd2425-loop-identity",
+          "image_sha256": "2a0bd888510fe3415fbdcebb719c2a99d32801f09ad001333e429f6ebc7e9d3e",
+          "child_stage": "exec",
+          "child_errno": 0,
+          "errno": 71,
+          "exit_code": 1,
+          "signal": 0,
+          "prepared": true,
+          "guest_uid": 65534,
+          "guest_gid": 65534,
+          "capabilities_zero": true,
+          "no_new_privs": 1,
+          "filter_verified": 5,
+          "loop_preferred": 46,
+          "loop_actual_major": 7,
+          "loop_actual_minor": 368,
+          "loop_expected_major": 7,
+          "loop_expected_minor": 368,
+          "loop_candidates": 2,
+          "namespaces_private": true,
+          "spawned": 1,
+          "reaped": 1,
+          "parent_unchanged": true,
+          "loops_released": true,
+          "temporary_directory_removed": true,
+          "guest_linker_executed": true,
+          "guest_shell_passed": false,
+          "interpretation": "Pinned GSI linker produced invalid direct-invocation option error. Image/runtime mounted and capless seccomp setup completed. minor=368 for loop46 confirms hardcoded minor==index was invalid. Android linker invocation and self-only scheduler queries fixed for next test; full Android remains unauthorized."
         }
       ]
     }

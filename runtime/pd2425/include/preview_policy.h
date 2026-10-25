@@ -8,10 +8,14 @@ static struct sock_filter pv_exec_filter[]={
     BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,arch)),
     BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,PD_GUARD_ARCH,1,0),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_KILL_PROCESS),
     BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,nr)),
-    /* Bionic main-thread initialization queries its inherited policy. Allow
-       read-only scheduler queries with pid=0 only, never scheduler setters. */
-    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_sched_getscheduler,1,0),
-    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_sched_getparam,0,6),
+    /* Bionic/mksh read their own scheduler, process group, session and usage.
+       Argument 0 must be exactly zero: self PID, or RUSAGE_SELF for getrusage.
+       Other PIDs/usage selectors and all setters remain denied. */
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_sched_getscheduler,4,0),
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_sched_getparam,3,0),
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_getpgid,2,0),
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_getsid,1,0),
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_getrusage,0,6),
     BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,args[0])),
     BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,0,0,3),
     BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,args[0])+4),
@@ -38,16 +42,21 @@ static struct sock_filter pv_exec_filter[]={
     BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,args[2])+4),
     BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,0,0,1),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ALLOW),
     BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|EPERM),
-    /* fcntl may inspect flags/set CLOEXEC, never set async signal ownership. */
-    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_fcntl,0,6),
+    /* Only local FD inspection/CLOEXEC/duplication. Host setup descriptors
+       and metadata have closed on exec; never allow async signal ownership. */
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_fcntl,0,8),
     BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,args[1])),
-    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,F_GETFD,3,0),
-    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,F_SETFD,2,0),
-    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,F_GETFL,1,0),
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,F_GETFD,5,0),
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,F_SETFD,4,0),
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,F_GETFL,3,0),
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,F_DUPFD,2,0),
+    BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,F_DUPFD_CLOEXEC,1,0),
     BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|EPERM),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ALLOW),
     /* Reload nr: preceding argument checks return on every matching path. */
     BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,nr)),
     PV_ALLOW(SYS_read),PV_ALLOW(SYS_pread64),PV_ALLOW(SYS_write),PV_ALLOW(SYS_writev),PV_ALLOW(SYS_close),PV_ALLOW(SYS_fstat),PV_ALLOW(SYS_newfstatat),
+    /* Linker checks the filesystem of already-open immutable library FDs. */
+    PV_ALLOW(SYS_fstatfs),
     PV_ALLOW(SYS_lseek),PV_ALLOW(SYS_readlinkat),PV_ALLOW(SYS_getdents64),PV_ALLOW(SYS_faccessat),PV_ALLOW(SYS_getcwd),
     PV_ALLOW(SYS_mmap),PV_ALLOW(SYS_mprotect),PV_ALLOW(SYS_munmap),PV_ALLOW(SYS_mremap),PV_ALLOW(SYS_brk),PV_ALLOW(SYS_madvise),
     PV_ALLOW(SYS_rt_sigaction),PV_ALLOW(SYS_rt_sigprocmask),PV_ALLOW(SYS_rt_sigreturn),PV_ALLOW(SYS_sigaltstack),

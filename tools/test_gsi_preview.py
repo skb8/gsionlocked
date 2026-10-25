@@ -15,6 +15,7 @@ source=r'''
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/vfs.h>
+#include <sys/resource.h>
 static int test_execve(const char*,char *const[],char *const[]);
 static ssize_t test_read(int,void*,size_t);
 static int test_fstatfs(int,struct statfs*);
@@ -114,24 +115,38 @@ int main(int argc,char **argv){
  f=fopen(PV_TEST_PATH,"w+b");Elf64_Ehdr e={0};memcpy(e.e_ident,ELFMAG,4);e.e_ident[EI_CLASS]=ELFCLASS64;e.e_ident[EI_DATA]=ELFDATA2LSB;e.e_machine=EM_AARCH64;e.e_type=ET_DYN;e.e_ehsize=sizeof(e);assert(fwrite(&e,1,sizeof(e),f)==sizeof(e)&&!fflush(f));assert(!pv_elf64(fileno(f)));e.e_machine=EM_X86_64;assert(pwrite(fileno(f),&e,sizeof(e),0)==sizeof(e));assert(pv_elf64(fileno(f))==ENOEXEC);fclose(f);
  uint64_t args[6]={0};uint32_t deny=SECCOMP_RET_ERRNO|EPERM;
  assert(eval(PD_GUARD_ARCH,SYS_write,args)==SECCOMP_RET_ALLOW&&eval(PD_GUARD_ARCH^1,SYS_write,args)==SECCOMP_RET_KILL_PROCESS);
- unsigned denied[]={SYS_clone,SYS_fork,SYS_vfork,SYS_socket,SYS_kill,SYS_ptrace,SYS_bpf,SYS_mount,SYS_setresuid,SYS_reboot,SYS_ioctl,SYS_seccomp,SYS_sched_setscheduler,SYS_sched_setparam,SYS_sched_setattr};
+ unsigned denied[]={SYS_clone,SYS_fork,SYS_vfork,SYS_socket,SYS_kill,SYS_ptrace,SYS_bpf,SYS_mount,SYS_setresuid,SYS_reboot,SYS_ioctl,SYS_seccomp,SYS_sched_setscheduler,SYS_sched_setparam,SYS_sched_setattr,SYS_setpgid,SYS_setsid,SYS_umount2,SYS_fchmod,SYS_ftruncate,SYS_statfs};
  for(unsigned n=0;n<sizeof(denied)/sizeof(denied[0]);n++)assert(eval(PD_GUARD_ARCH,denied[n],args)==deny);
- unsigned scheduler_queries[]={SYS_sched_getscheduler,SYS_sched_getparam};
- for(unsigned n=0;n<2;n++){
-  args[0]=0;assert(eval(PD_GUARD_ARCH,scheduler_queries[n],args)==SECCOMP_RET_ALLOW);
-  args[0]=1;assert(eval(PD_GUARD_ARCH,scheduler_queries[n],args)==deny);
-  args[0]=UINT64_C(1)<<32;assert(eval(PD_GUARD_ARCH,scheduler_queries[n],args)==deny);
+ unsigned self_queries[]={SYS_sched_getscheduler,SYS_sched_getparam,SYS_getpgid,SYS_getsid,SYS_getrusage};
+ for(unsigned n=0;n<sizeof(self_queries)/sizeof(self_queries[0]);n++){
+  args[0]=0;assert(eval(PD_GUARD_ARCH,self_queries[n],args)==SECCOMP_RET_ALLOW);
+  args[0]=1;assert(eval(PD_GUARD_ARCH,self_queries[n],args)==deny);
+  args[0]=UINT64_C(1)<<32;assert(eval(PD_GUARD_ARCH,self_queries[n],args)==deny);
  }memset(args,0,sizeof(args));
+ assert(eval(PD_GUARD_ARCH,SYS_fstatfs,args)==SECCOMP_RET_ALLOW);
  assert(eval(PD_GUARD_ARCH,SYS_openat,args)==SECCOMP_RET_ALLOW);args[2]=O_RDWR;assert(eval(PD_GUARD_ARCH,SYS_openat,args)==deny);args[2]=O_RDONLY|O_CREAT;assert(eval(PD_GUARD_ARCH,SYS_openat,args)==deny);
  memset(args,0,sizeof(args));assert(eval(PD_GUARD_ARCH,SYS_prlimit64,args)==SECCOMP_RET_ALLOW);args[2]=UINT64_C(1)<<32;assert(eval(PD_GUARD_ARCH,SYS_prlimit64,args)==deny);args[2]=0;args[0]=10;assert(eval(PD_GUARD_ARCH,SYS_prlimit64,args)==deny);
  memset(args,0,sizeof(args));args[0]=PR_SET_SECCOMP;assert(eval(PD_GUARD_ARCH,SYS_prctl,args)==deny);args[0]=0x53564d41U;assert(eval(PD_GUARD_ARCH,SYS_prctl,args)==SECCOMP_RET_ALLOW);args[1]=1;assert(eval(PD_GUARD_ARCH,SYS_prctl,args)==deny);
- memset(args,0,sizeof(args));args[1]=F_GETFD;assert(eval(PD_GUARD_ARCH,SYS_fcntl,args)==SECCOMP_RET_ALLOW);args[1]=F_SETOWN;assert(eval(PD_GUARD_ARCH,SYS_fcntl,args)==deny);args[1]=F_SETFL;assert(eval(PD_GUARD_ARCH,SYS_fcntl,args)==deny);
+ memset(args,0,sizeof(args));args[1]=F_GETFD;assert(eval(PD_GUARD_ARCH,SYS_fcntl,args)==SECCOMP_RET_ALLOW);args[1]=F_DUPFD;assert(eval(PD_GUARD_ARCH,SYS_fcntl,args)==SECCOMP_RET_ALLOW);args[1]=F_DUPFD_CLOEXEC;assert(eval(PD_GUARD_ARCH,SYS_fcntl,args)==SECCOMP_RET_ALLOW);args[1]=F_SETOWN;assert(eval(PD_GUARD_ARCH,SYS_fcntl,args)==deny);args[1]=F_SETFL;assert(eval(PD_GUARD_ARCH,SYS_fcntl,args)==deny);
+ int metadata_fd=open(PV_TEST_PATH,O_RDONLY|O_CLOEXEC|O_NOFOLLOW);assert(metadata_fd>=0);
  pid_t p=fork();assert(p>=0);if(!p){if(pv_install_filter()||pv_test_filter())_exit(50);
   struct sched_param param={0};
   if(syscall(SYS_sched_getscheduler,0)<0||syscall(SYS_sched_getparam,0,&param)<0)_exit(51);
   errno=0;if(syscall(SYS_sched_getscheduler,getppid())!=-1||errno!=EPERM)_exit(52);
   errno=0;if(syscall(SYS_sched_setscheduler,0,SCHED_OTHER,&param)!=-1||errno!=EPERM)_exit(53);
-  _exit(0);}int status;assert(waitpid(p,&status,0)==p&&WIFEXITED(status)&&WEXITSTATUS(status)==0);assert(kill(getpid(),0)==0);
+  struct statfs fs;struct rusage usage;
+  if(syscall(SYS_fstatfs,metadata_fd,&fs)<0||!fs.f_type)_exit(54);
+  if(syscall(SYS_getpgid,0)<0||syscall(SYS_getsid,0)<0||syscall(SYS_getrusage,RUSAGE_SELF,&usage)<0)_exit(55);
+  errno=0;if(syscall(SYS_getpgid,getppid())!=-1||errno!=EPERM)_exit(56);
+  errno=0;if(syscall(SYS_getsid,getppid())!=-1||errno!=EPERM)_exit(57);
+  errno=0;if(syscall(SYS_getrusage,RUSAGE_CHILDREN,&usage)!=-1||errno!=EPERM)_exit(58);
+  errno=0;if(syscall(SYS_setpgid,0,0)!=-1||errno!=EPERM)_exit(59);
+  errno=0;if(syscall(SYS_fchmod,metadata_fd,0600)!=-1||errno!=EPERM)_exit(60);
+  int local_dup=(int)syscall(SYS_fcntl,metadata_fd,F_DUPFD_CLOEXEC,0);
+  if(local_dup<0||!(syscall(SYS_fcntl,local_dup,F_GETFD)&FD_CLOEXEC))_exit(61);
+  if(close(local_dup))_exit(62);
+  errno=0;if(syscall(SYS_fcntl,metadata_fd,F_SETOWN,getppid())!=-1||errno!=EPERM)_exit(63);
+  _exit(0);}int status;assert(waitpid(p,&status,0)==p&&WIFEXITED(status)&&WEXITSTATUS(status)==0);assert(kill(getpid(),0)==0);close(metadata_fd);
  return 0;
 }
 '''
