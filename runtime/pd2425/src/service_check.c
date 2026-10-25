@@ -15,7 +15,7 @@
 #include <sys/vfs.h>
 #include <linux/android/binder.h>
 #include <linux/magic.h>
-static void sm_fail(const char *stage){char message[160];int n=snprintf(message,sizeof(message),"PD2425_SM_ENV_FAIL stage=%s errno=%d\n",stage,errno);if(n>0){ssize_t out=write(2,message,(size_t)n);(void)out;}_exit(124);}
+static _Noreturn void sm_fail(const char *stage){char message[160];int n=snprintf(message,sizeof(message),"PD2425_SM_ENV_FAIL stage=%s errno=%d\n",stage,errno);if(n>0){ssize_t out=write(2,message,(size_t)n);(void)out;}_exit(124);}
 static void sm_check_readonly(const char *path){struct statfs fs;struct statvfs flags;if(statfs(path,&fs)||statvfs(path,&flags)||(uint32_t)fs.f_type!=0xf97cff8cU||!(flags.f_flag&ST_RDONLY))sm_fail("policy_readonly");}
 /* Android exports no compute_av_flags API. Query the genuine selinuxfs
    transaction endpoint instead; its sixth field includes per-domain permissive. */

@@ -46,7 +46,7 @@ static int fd_fs(int fd,struct statfs *out){assert(fd==10);memset(out,0,sizeof(*
 static int query(int fd,unsigned long request,...){assert(fd==10&&request==BINDER_VERSION);va_list a;va_start(a,request);struct binder_version *v=va_arg(a,struct binder_version*);va_end(a);v->protocol_version=failure==9?7:BINDER_CURRENT_PROTOCOL_VERSION;return 0;}
 static int closing(int fd){assert(fd>=10&&fd<=13);return 0;}
 static ssize_t writing(int fd,const void *text,size_t size){if(fd==13){assert(strstr(text,"u:r:servicemanager:s0 u:object_r:servicemanager_service:s0 42"));return (ssize_t)size;}assert(size<sizeof(message));memcpy(message,text,size);message[size]=0;return (ssize_t)size;}
-static void exiting(int code){assert(code==124);longjmp(escape,1);}
+static _Noreturn void exiting(int code){assert(code==124);longjmp(escape,1);}
 #define getuid identity
 #define geteuid identity
 #define getgid identity
