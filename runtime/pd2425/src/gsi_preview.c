@@ -112,7 +112,8 @@ static int pv_limit(int resource,rlim_t value){struct rlimit r={value,value};ret
 static int pv_exec_guest(void){
     /* Android's direct linker entry accepts PROGRAM, not glibc's
        --library-path option. Supply a fixed path through its own environment. */
-    char *args[]={"/apex/com.android.runtime/bin/linker64","/system/bin/sh","-c","printf 'PD2425_GSI_SHELL_OK\\n'",NULL};
+    /* Force the mksh builtin: external printf would require forbidden fork. */
+    char *args[]={"/apex/com.android.runtime/bin/linker64","/system/bin/sh","-c","builtin echo PD2425_GSI_SHELL_OK",NULL};
     char *env[]={"PATH=/system/bin","HOME=/","ANDROID_ROOT=/system","ANDROID_RUNTIME_ROOT=/apex/com.android.runtime","LD_LIBRARY_PATH=/apex/com.android.runtime/lib64/bionic:/system/lib64",NULL};
     return execve(args[0],args,env);
 }

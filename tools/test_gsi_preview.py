@@ -42,9 +42,21 @@ static int test_open(const char*,int,...),test_fstat(int,struct stat*),test_ioct
 int __system_property_get(const char*k,char*v){(void)k;*v=0;return 0;}
 static int test_execve(const char *file,char *const args[],char *const env[]){
  assert(!strcmp(file,"/apex/com.android.runtime/bin/linker64")&&!strcmp(args[0],file));
- assert(!strcmp(args[1],"/system/bin/sh")&&!strcmp(args[2],"-c")&&!strcmp(args[3],"printf 'PD2425_GSI_SHELL_OK\\n'")&&!args[4]);
+ assert(!strcmp(args[1],"/system/bin/sh")&&!strcmp(args[2],"-c")&&!strcmp(args[3],"builtin echo PD2425_GSI_SHELL_OK")&&!args[4]);
  assert(!strcmp(env[0],"PATH=/system/bin")&&!strcmp(env[1],"HOME=/")&&!strcmp(env[2],"ANDROID_ROOT=/system")&&!strcmp(env[3],"ANDROID_RUNTIME_ROOT=/apex/com.android.runtime"));
  assert(!strcmp(env[4],"LD_LIBRARY_PATH=/apex/com.android.runtime/lib64/bionic:/system/lib64")&&!env[5]);
+ /* Exercise the actual command with PATH unavailable: no external utility
+    may be needed to render the exact marker. This is host Bash, not ARM mksh. */
+ int pipefd[2];assert(!pipe(pipefd));pid_t child=fork();assert(child>=0);
+ if(!child){close(pipefd[0]);assert(dup2(pipefd[1],1)==1);close(pipefd[1]);
+  char *testargs[]={"/bin/bash","--noprofile","--norc","-c",args[3],NULL};
+  char *testenv[]={"PATH=/no-external-programs","HOME=/",NULL};
+  execve(testargs[0],testargs,testenv);_exit(127);
+ }
+ close(pipefd[1]);char marker[64]={0};size_t total=0;
+ while(total<sizeof(marker)-1){ssize_t bytes=read(pipefd[0],marker+total,sizeof(marker)-1-total);assert(bytes>=0);if(!bytes)break;total+=(size_t)bytes;}
+ close(pipefd[0]);assert(total==20&&!strcmp(marker,"PD2425_GSI_SHELL_OK\n"));
+ int status=0;assert(waitpid(child,&status,0)==child&&WIFEXITED(status)&&WEXITSTATUS(status)==0);
  errno=ENOEXEC;return -1;
 }
 static int loop_busy,wrong_device,configures,missing_control,missing_preferred,delay_preferred,denied_control,minor_shift,wrong_sysfs,sysfs_denied;
