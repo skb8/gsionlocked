@@ -83,6 +83,7 @@ int main(int argc,char **argv){
     (fixture/'proc/321/exe').symlink_to('/vendor/bin/hw/android.hardware.audio.service_64')
     put('/proc/777/comm','system_server\n');(fixture/'proc/777/fd').mkdir()
     (fixture/'proc/777/fd/9').symlink_to('/dev/watchdog0')
+    put('/proc/modules','goodix_ts 123 0 - Live ffffffffdeadbeef\nordinary_module 44 0 - Live ffffffffabcdef00\nvts_core 99 0 - Live ffffffff00112233\n');
     put('/proc/sys/kernel/osrelease','6.1-test\n');put('/sys/fs/selinux/enforce','1\n')
     put('/sys/class/power_supply/battery/temp','379\n');put('/sys/fs/cgroup/cgroup.controllers','cpu memory\n')
     for key,value in {'identity':'OEM watchdog','timeout':'45','nowayout':'1','state':'active'}.items():put('/sys/class/watchdog/watchdog0/'+key,value+'\n')
@@ -93,7 +94,8 @@ int main(int argc,char **argv){
         assert r.returncode==(31 if extra.get('BAD_DEVICE') else 0),r.stderr
         j=json.loads(r.stdout);assert j['schema']==3 and j['runtime_ready'] is False and j['no_device_changes'] is True
         return j
-    j=collect();audio=next(s for s in j['services'] if s['name']=='vendor.audio-hal')
+    j=collect();assert j['module_candidates']['names']==['goodix_ts','vts_core'] and 'deadbeef' not in json.dumps(j)
+    audio=next(s for s in j['services'] if s['name']=='vendor.audio-hal')
     assert audio['snapshot_stable'] and audio['pid_source']=='init_property' and audio['executable_matches']
     assert audio['uid']=='1041\t1041\t1041\t1041' and audio['groups']=='1005 1006' and audio['start_ticks']==12345
     assert j['watchdog']['system_server_fds']==[{'pid':777,'fd':'9','target':'/dev/watchdog0'}]

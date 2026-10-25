@@ -31,14 +31,20 @@ final class Pd2425Diagnostics {
         return run(context,"--diagnose-json","apk-probe",3,true).toString(2)+"\n";
     }
     static String collectWithCgroupTest(Context context)throws Exception {
+        return collectWithTest(context,"--test-cgroup","cgroup-self-test","cgroup");
+    }
+    static String collectWithIsolationTest(Context context)throws Exception {
+        return collectWithTest(context,"--test-isolation","namespace-self-test","namespaces");
+    }
+    private static String collectWithTest(Context context,String argument,String component,String field)throws Exception {
         JSONObject base=run(context,"--diagnose-json","apk-probe",3,true);
         JSONObject tests=new JSONObject();
         if(base.getBoolean("host_profile_match")) {
             base.put("observations_read_only",true);
             base.put("no_device_changes",false); // Temporary group/own children may be created.
-            try{tests.put("cgroup",run(context,"--test-cgroup","cgroup-self-test",1,false));}
-            catch(Exception error){tests.put("cgroup",new JSONObject().put("collection_error",String.valueOf(error.getMessage())).put("runtime_ready",false));}
-        }else tests.put("cgroup",new JSONObject().put("not_run","Host profile mismatch"));
+            try{tests.put(field,run(context,argument,component,1,false));}
+            catch(Exception error){tests.put(field,new JSONObject().put("collection_error",String.valueOf(error.getMessage())).put("runtime_ready",false));}
+        }else tests.put(field,new JSONObject().put("not_run","Host profile mismatch"));
         base.put("self_tests",tests);
         return base.toString(2)+"\n";
     }

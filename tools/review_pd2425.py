@@ -11,15 +11,53 @@ def select_keys(devices,profile):
         if d.get('name')==names['down_name'] and d.get('volume_down') is True and d.get('volume_up') is False:down.append(d.get('path'))
     valid=len(up)==len(down)==1 and up[0]!=down[0] and all(isinstance(p,str) and re.fullmatch(r'/dev/input/event\d+',p) for p in up+down)
     return {'selection_valid':bool(valid),'up_path':up[0] if valid else None,'down_path':down[0] if valid else None,'physical_chord_tested':False}
+def contained_test_ok(test,component,report):
+    if not isinstance(test,dict):return False
+    a,b=report.get('boot_id',{}),test.get('boot_id',{})
+    same_boot=isinstance(a,dict) and isinstance(b,dict) and a.get('errno')==b.get('errno')==0 and isinstance(a.get('value'),str) and bool(a['value'].strip()) and a.get('value')==b.get('value')
+    return (test.get('component')==component and test.get('schema')==1 and test.get('fingerprint')==report.get('fingerprint') and same_boot and type(test.get('uid')) is int and test['uid']==0 and test.get('runtime_ready') is False and all(test.get(k) is True for k in ['passed','test_only_children','group_created','is_cgroup2','membership_verified','kill_succeeded','drained','cleanup_complete']) and test.get('host_services_changed') is False and test.get('spawned')==test.get('pidfds')==test.get('reaped')==2 and test.get('errno')==test.get('cleanup_errno')==0)
+def namespace_test_ok(test,report):
+    if not contained_test_ok(test,'namespace-self-test',report):return False
+    if not all(test.get(k) is True for k in ['parent_checked','parent_unchanged','temporary_directory_removed']):return False
+    def namespace(value):
+        if not isinstance(value,dict) or type(value.get('device')) is not int or value['device']<0 or type(value.get('inode')) is not int or value['inode']<=0:return None
+        return value['device'],value['inode']
+    parent_mnt,parent_net=namespace(test.get('parent_mount_namespace')),namespace(test.get('parent_network_namespace'))
+    if parent_mnt is None or parent_net is None:return False
+    parent_binder=test.get('parent_binder');children=test.get('children')
+    if not isinstance(parent_binder,list) or not isinstance(children,list) or len(children)!=2:return False
+    def device(value):
+        if not isinstance(value,dict) or type(value.get('major')) is not int or not 0<value['major']<=0xffffffff or type(value.get('minor')) is not int or not 0<=value['minor']<=0xffffffff:return None
+        return value['major'],value['minor']
+    stock={device(d) for d in parent_binder if isinstance(d,dict) and d.get('present') is True}
+    if None in stock or not any(d.get('name')=='binder' and d.get('present') is True for d in parent_binder if isinstance(d,dict)):return False
+    seen_indices=set();mounts=set();networks=set();devices=set()
+    for child in children:
+        if not isinstance(child,dict) or type(child.get('index')) is not int or child['index'] not in [0,1] or child['index'] in seen_indices:return False
+        seen_indices.add(child['index'])
+        if child.get('reported') is not True or child.get('errno')!=0 or child.get('stage')!='complete' or child.get('private_mounts') is not True or child.get('private_network') is not True or child.get('devices_created')!=3:return False
+        mnt,net=namespace(child.get('mount_namespace')),namespace(child.get('network_namespace'))
+        if mnt is None or net is None or mnt==parent_mnt or net==parent_net or mnt in mounts or net in networks:return False
+        mounts.add(mnt);networks.add(net)
+        nodes=child.get('binder')
+        if not isinstance(nodes,list) or len(nodes)!=3:return False
+        names=set()
+        for node in nodes:
+            if not isinstance(node,dict) or node.get('name') not in ['binder','hwbinder','vndbinder'] or node['name'] in names or node.get('protocol')!=8:return False
+            names.add(node['name']);identity=device(node)
+            if identity is None or identity in stock or identity in devices:return False
+            devices.add(identity)
+    return True
 def review(report,profile):
     issues=[];observed=[]
     def issue(code,detail):issues.append({'code':code,'detail':detail})
     if not isinstance(report,dict) or report.get('schema') not in [2,3]:
         return {'schema':2,'runtime_ready':False,'issues':[{'code':'report_schema','detail':'Native schema 2 or 3 required'}],'remaining_device_tests':REMAINING}
     tests=report.get('self_tests',{});cgtest=tests.get('cgroup') if isinstance(tests,dict) else None
+    nstest=tests.get('namespaces') if isinstance(tests,dict) else None
     if report.get('runtime_ready') is not False:issue('report_contract','Unexpected readiness claim')
     if report.get('no_device_changes') is not True:
-        if not isinstance(cgtest,dict) or report.get('observations_read_only') is not True:issue('report_contract','Unrecognized non-read-only report')
+        if not (isinstance(cgtest,dict) or isinstance(nstest,dict)) or report.get('observations_read_only') is not True:issue('report_contract','Unrecognized non-read-only report')
     hardware=report.get('device')==profile['device'] and report.get('sdk')==str(profile['host_sdk']) and report.get('abi')=='arm64-v8a'
     host_match=hardware and report.get('fingerprint') in profile.get('accepted_host_fingerprints',[profile['fingerprint']])
     ota_exact=hardware and report.get('fingerprint')==profile['fingerprint']
@@ -92,15 +130,11 @@ def review(report,profile):
         item=watchdog.get(field,{})
         if not isinstance(item,dict) or item.get('errno')!=0 or not item.get('value'):missing.append(field)
     if missing:issue('watchdog_strategy_unresolved','watchdog0 metadata unavailable: '+', '.join(missing)+'; this does not prove no watchdog exists')
-    cgroup_pass=False
-    if cgtest is not None:
-        if not isinstance(cgtest,dict):issue('cgroup_test_invalid','Invalid child-only test result')
-        else:
-            base_boot=report.get('boot_id',{});test_boot=cgtest.get('boot_id',{})
-            same_boot=isinstance(base_boot,dict) and isinstance(test_boot,dict) and base_boot.get('errno')==test_boot.get('errno')==0 and isinstance(base_boot.get('value'),str) and bool(base_boot['value'].strip()) and base_boot.get('value')==test_boot.get('value')
-            cgroup_pass=(cgtest.get('component')=='cgroup-self-test' and cgtest.get('schema')==1 and cgtest.get('fingerprint')==report.get('fingerprint') and same_boot and cgtest.get('uid')==0 and cgtest.get('runtime_ready') is False and all(cgtest.get(k) is True for k in ['passed','test_only_children','is_cgroup2','membership_verified','kill_succeeded','drained','cleanup_complete']) and cgtest.get('host_services_changed') is False and cgtest.get('spawned')==cgtest.get('pidfds')==cgtest.get('reaped')==2 and cgtest.get('errno')==cgtest.get('cleanup_errno')==0)
-            if not cgroup_pass:issue('cgroup_test_not_passed',str(cgtest.get('stage',cgtest.get('collection_error',cgtest.get('not_run','incomplete result')))))
-    return {'schema':2,'runtime_ready':False,'host_profile_match':host_match,'ota_fingerprint_exact_match':ota_exact,'observation_checks_passed':not issues,'issues':issues,'observed_process_credentials':observed,'return_keys':selected_keys,'cgroup_kill_child_test_passed':bool(cgroup_pass),'remaining_device_tests':REMAINING,'warning':'Observed identities and test results are not launch authorization. No service control is generated.'}
+    cgroup_pass=contained_test_ok(cgtest,'cgroup-self-test',report)
+    if cgtest is not None and not cgroup_pass:issue('cgroup_test_not_passed',str(cgtest.get('stage',cgtest.get('collection_error',cgtest.get('not_run','incomplete result')))) if isinstance(cgtest,dict) else 'invalid result')
+    namespace_pass=namespace_test_ok(nstest,report)
+    if nstest is not None and not namespace_pass:issue('namespace_test_not_passed',str(nstest.get('stage',nstest.get('collection_error',nstest.get('not_run','incomplete result')))) if isinstance(nstest,dict) else 'invalid result')
+    return {'schema':2,'runtime_ready':False,'host_profile_match':host_match,'ota_fingerprint_exact_match':ota_exact,'observation_checks_passed':not issues,'issues':issues,'observed_process_credentials':observed,'return_keys':selected_keys,'cgroup_kill_child_test_passed':bool(cgroup_pass or namespace_pass),'namespace_test_passed':namespace_pass,'remaining_device_tests':REMAINING,'warning':'Observed identities and test results are not launch authorization. No service control is generated.'}
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('report',type=Path);p.add_argument('--output',type=Path);a=p.parse_args()
     result=review(json.loads(a.report.read_text()),json.loads((ROOT/'profiles/pd2425-originos6.json').read_text()))

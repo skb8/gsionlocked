@@ -99,6 +99,15 @@ public final class MainActivity extends Activity {
                     return "Отчёт с результатом теста готов. Сохраните JSON. Службы OriginOS не останавливались.";
                 });
             }));
+            buttons.add(Ui.button(page,"Тест namespaces/BinderFS",false,()->{
+                if(busy)return;
+                if(inside){status.setText("Проверяйте изоляцию в OriginOS.");return;}
+                pd2425Report=null;
+                task("Проверка namespaces и приватного Binder на своих процессах…",()->{
+                    pd2425Report=Pd2425Diagnostics.collectWithIsolationTest(this);
+                    return "Отчёт готов. Сохраните JSON. Службы OriginOS и штатный Binder не переключались.";
+                });
+            }));
             buttons.add(Ui.button(page,"Сохранить root-отчёт",false,()->{
                 if(busy)return;
                 if(pd2425Report==null){status.setText("Сначала соберите Root-отчёт PD2425.");return;}

@@ -280,5 +280,23 @@
       "expected_active": "vendor.gatekeeper_default",
       "source": "default stable and identity-observed; SPU property absent in owner report"
     }
-  ]
+  ],
+  "validated_components": {
+    "cgroup_child_only": {
+      "state": "owner-device-passed",
+      "source_sha256": "35b6120606dd10238568e9c7b04627fae83c2ad44ab5dbd46a9af79a9c2b7e51",
+      "kernel_release": "6.1.145-android14-11-maybe-dirty",
+      "root_context": "u:r:ksu:s0",
+      "selinux_enforcing": true,
+      "cgroup2": true,
+      "resource_controllers": [],
+      "pidfd": true,
+      "exact_own_membership": true,
+      "cgroup_kill": true,
+      "drained": true,
+      "children_reaped": true,
+      "temporary_group_removed": true,
+      "scope": "own children only; not guest/hardware takeover"
+    }
+  }
 }

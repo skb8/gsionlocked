@@ -218,6 +218,22 @@ static void json_node_directory(const char *path) {
     if(dir)closedir(dir);
     printf("],\"limited\":%s,\"attribute_values_read\":false}",count>=64?"true":"false");
 }
+/* Candidate module names only: never export kernel addresses or raw lines. */
+static void json_touch_modules(void) {
+    char full[PATH_MAX];const char *mapped=probe_path("/proc/modules",full);FILE *file=mapped?fopen(mapped,"re"):NULL;
+    int error=file?0:errno;unsigned count=0;char line[1024];int continuation=0;
+    fputs("{\"names\":[",stdout);
+    while(file&&fgets(line,sizeof(line),file)&&count<32){
+        int skip=continuation;continuation=strchr(line,'\n')==NULL;
+        if(skip)continue;
+        char name[96];if(sscanf(line,"%95s",name)!=1)continue;
+        if(!strcasestr(name,"touch")&&!strcasestr(name,"vts")&&!strcasestr(name,"vivo_ts")&&!strcasestr(name,"goodix")&&!strcasestr(name,"watchdog")&&!strcasestr(name,"wdog")&&!strcasestr(name,"kernelsu"))continue;
+        if(count++)putchar(',');
+        json_string(name);
+    }
+    if(file){if(ferror(file))error=errno?errno:EIO;fclose(file);}
+    printf("],\"errno\":%d,\"limited\":%s,\"raw_lines_exported\":false}",error,count>=32?"true":"false");
+}
 static void pd2425_json_report(int matched,const char *device,const char *sdk,const char *abi,const char *fp) {
     fputs("{\"schema\":3,\"component\":",stdout);json_string(COMPONENT);
     printf(",\"runtime_ready\":false,\"no_device_changes\":true,\"host_profile_match\":%s,\"ota_identity_match\":%s,\"uid\":%lu",matched?"true":"false",matched&&!strcmp(fp,PD2425_FINGERPRINT)?"true":"false",(unsigned long)getuid());
@@ -239,7 +255,9 @@ static void pd2425_json_report(int matched,const char *device,const char *sdk,co
     fputs(",\"watchdog_class\":",stdout);watchdog_inventory();
     fputs(",\"touch_nodes\":{\"vts\":",stdout);json_node_directory("/sys/class/vts/vivo_ts");
     fputs(",\"touchscreen\":",stdout);json_node_directory("/sys/touchscreen");
-    fputs(",\"module_parameters\":",stdout);json_node_directory("/sys/module/goodix_ts/parameters");putchar('}');
+    fputs(",\"module_parameters\":",stdout);json_node_directory("/sys/module/goodix_ts/parameters");
+    fputs(",\"status_entries\":",stdout);json_node_directory("/sys/class/vts/vivo_ts/status");putchar('}');
+    fputs(",\"module_candidates\":",stdout);json_touch_modules();
     fputs(",\"inputs\":",stdout);input_evidence();
     fputs(",\"services\":[",stdout);
     for(unsigned i=0;i<sizeof(pd_services)/sizeof(pd_services[0]);i++){if(i)putchar(',');service_evidence(&pd_services[i]);}
