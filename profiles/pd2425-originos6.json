@@ -27,42 +27,122 @@
     {
       "name": "vendor.qti.hardware.display.composer",
       "executable": "/vendor/bin/hw/vendor.qti.hardware.display.composer-service",
-      "source": "vendor/etc/init/vendor.qti.hardware.display.composer-service.rc"
+      "source": "vendor/etc/init/vendor.qti.hardware.display.composer-service.rc",
+      "observed_identity": {
+        "uid": 1000,
+        "gid": 1003,
+        "supplementary_groups": [
+          1026
+        ],
+        "cap_eff": "0000000000800000",
+        "selinux_context": "u:r:hal_graphics_composer_default:s0"
+      }
     },
     {
       "name": "vendor.audio-hal",
       "executable": "/vendor/bin/hw/android.hardware.audio.service_64",
-      "source": "vendor/etc/init/android.hardware.audio.service_64.rc"
+      "source": "vendor/etc/init/android.hardware.audio.service_64.rc",
+      "observed_identity": {
+        "uid": 1041,
+        "gid": 1005,
+        "supplementary_groups": [
+          1006,
+          1013,
+          1026,
+          1031,
+          2901,
+          2912,
+          3001,
+          3002,
+          3003,
+          3007,
+          3010
+        ],
+        "cap_eff": "0000001000800000",
+        "selinux_context": "u:r:hal_audio_default:s0"
+      }
     },
     {
       "name": "vendor.power",
       "executable": "/vendor/bin/hw/android.hardware.power-service",
-      "source": "vendor/etc/init/android.hardware.power-service.rc"
+      "source": "vendor/etc/init/android.hardware.power-service.rc",
+      "observed_identity": {
+        "uid": 1000,
+        "gid": 1000,
+        "supplementary_groups": [],
+        "cap_eff": "0000000000000000",
+        "selinux_context": "u:r:hal_power_default:s0"
+      }
     },
     {
       "name": "vendor.qti.light",
       "executable": "/vendor/bin/hw/vendor.qti.hardware.lights.service",
-      "source": "vendor/etc/init/vendor.qti.hardware.lights.service.rc"
+      "source": "vendor/etc/init/vendor.qti.hardware.lights.service.rc",
+      "observed_identity": {
+        "uid": 1000,
+        "gid": 1000,
+        "supplementary_groups": [],
+        "cap_eff": "0000000000000000",
+        "selinux_context": "u:r:hal_light_default:s0"
+      }
     },
     {
       "name": "vendor.health-default",
       "executable": "/vendor/bin/hw/android.hardware.health-service.qti",
-      "source": "vendor/etc/init/android.hardware.health-service.qti.rc"
+      "source": "vendor/etc/init/android.hardware.health-service.qti.rc",
+      "observed_identity": {
+        "uid": 1000,
+        "gid": 1000,
+        "supplementary_groups": [],
+        "cap_eff": "0000001800000000",
+        "selinux_context": "u:r:hal_health_default:s0"
+      }
     },
     {
       "name": "vendor.camera-provider",
       "executable": "/vendor/bin/hw/vendor.qti.camera.provider-service_64",
-      "source": "vendor/etc/init/vendor.qti.camera.provider-service_64.rc"
+      "source": "vendor/etc/init/vendor.qti.camera.provider-service_64.rc",
+      "observed_identity": {
+        "uid": 1047,
+        "gid": 1005,
+        "supplementary_groups": [
+          1004,
+          1006,
+          1026,
+          2907,
+          2912,
+          3010
+        ],
+        "cap_eff": "0000001000800000",
+        "selinux_context": "u:r:hal_camera_default:s0"
+      }
     },
     {
       "name": "biometrics-fingerprint",
       "executable": "/vendor/bin/hw/vendor.vivo.hardware.biometrics.fingerprint-service",
-      "source": "vendor/etc/init/vendor.vivo.hardware.biometrics.fingerprint-service.rc"
+      "source": "vendor/etc/init/vendor.vivo.hardware.biometrics.fingerprint-service.rc",
+      "observed_identity": {
+        "uid": 1000,
+        "gid": 1000,
+        "supplementary_groups": [
+          1004,
+          3011
+        ],
+        "cap_eff": "0000000800800000",
+        "selinux_context": "u:r:vivo_hal_fingerprint:s0"
+      }
     },
     {
       "name": "vendor.gatekeeper_default",
       "executable": "/vendor/bin/hw/android.hardware.gatekeeper-service-qti",
-      "source": "vendor/etc/init/android.hardware.gatekeeper-service-qti.rc"
+      "source": "vendor/etc/init/android.hardware.gatekeeper-service-qti.rc",
+      "observed_identity": {
+        "uid": 1000,
+        "gid": 1000,
+        "supplementary_groups": [],
+        "cap_eff": "0000000000000000",
+        "selinux_context": "u:r:vendor_hal_gatekeeper_qti:s0"
+      }
     },
     {
       "name": "vendor.gatekeeper_spu",
@@ -82,12 +162,32 @@
     {
       "name": "surfaceflinger",
       "executable": "/system/bin/surfaceflinger",
-      "required_running": true
+      "required_running": true,
+      "observed_identity": {
+        "uid": 1000,
+        "gid": 1003,
+        "supplementary_groups": [
+          1026,
+          3009
+        ],
+        "cap_eff": "0000000000800000",
+        "selinux_context": "u:r:surfaceflinger:s0"
+      }
     },
     {
       "name": "zygote",
       "executable": "/system/bin/app_process64",
-      "required_running": true
+      "required_running": true,
+      "observed_identity": {
+        "uid": 0,
+        "gid": 0,
+        "supplementary_groups": [
+          1065,
+          3009
+        ],
+        "cap_eff": "000001ffffffffff",
+        "selinux_context": "u:r:zygote:s0"
+      }
     },
     {
       "name": "zygote_third",
@@ -96,20 +196,89 @@
     {
       "name": "audioserver",
       "executable": "/system/bin/audioserver",
-      "required_running": true
+      "required_running": true,
+      "observed_identity": {
+        "uid": 1041,
+        "gid": 1005,
+        "supplementary_groups": [
+          1006,
+          1013,
+          1023,
+          1026,
+          1031,
+          3001,
+          3002,
+          3007,
+          3009,
+          3010
+        ],
+        "cap_eff": "0000001000000000",
+        "selinux_context": "u:r:audioserver:s0"
+      }
     },
     {
       "name": "netd",
       "executable": "/system/bin/netd",
-      "required_running": true
+      "required_running": true,
+      "observed_identity": {
+        "uid": 0,
+        "gid": 0,
+        "supplementary_groups": [
+          3005
+        ],
+        "cap_eff": "00000000000074ef",
+        "selinux_context": "u:r:netd:s0"
+      }
     },
     {
       "name": "thermal-engine",
-      "executable": "/vendor/bin/thermal-engine-v2"
+      "executable": "/vendor/bin/thermal-engine-v2",
+      "observed_identity": {
+        "uid": 0,
+        "gid": 0,
+        "supplementary_groups": [
+          1000
+        ],
+        "cap_eff": "0000000000000002",
+        "selinux_context": "u:r:vendor_thermal-engine:s0"
+      }
     },
     {
       "name": "vendor.thermal-hal",
-      "executable": "/vendor/bin/hw/android.hardware.thermal-service.qti"
+      "executable": "/vendor/bin/hw/android.hardware.thermal-service.qti",
+      "observed_identity": {
+        "uid": 0,
+        "gid": 0,
+        "supplementary_groups": [],
+        "cap_eff": "000001ffffffffff",
+        "selinux_context": "u:r:hal_thermal_default:s0"
+      }
+    }
+  ],
+  "accepted_host_fingerprints": [
+    "vivo/PD2425/PD2425:16/BP2A.250605.031.A3/compiler260917174806:user/release-keys",
+    "vivo/PD2425/PD2425:16/BP2A.250605.031.A3_V000L1/compiler260917174806:user/release-keys"
+  ],
+  "live_evidence": {
+    "sha256": "a7ff39d109d44edeeddcd789ea60492338c8ee3d29a892270cbb69eaaff017b3",
+    "source": "owner-provided schema-2 report; sanitized facts only, no PIDs or timestamps",
+    "kernel_release": "6.1.145-android14-11-maybe-dirty",
+    "state": "observed-enforcing-no-guest-handoff-tested"
+  },
+  "return_keys": {
+    "up_name": "gpio-keys",
+    "down_name": "pmic_resin",
+    "source": "observed EVIOCGNAME and EVIOCGBIT; physical chord not tested",
+    "event_numbers_pinned": false
+  },
+  "service_alternatives": [
+    {
+      "members": [
+        "vendor.gatekeeper_default",
+        "vendor.gatekeeper_spu"
+      ],
+      "expected_active": "vendor.gatekeeper_default",
+      "source": "default stable and identity-observed; SPU property absent in owner report"
     }
   ]
 }

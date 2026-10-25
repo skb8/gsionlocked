@@ -61,3 +61,8 @@ with tempfile.TemporaryDirectory() as tmp:
     assert j['services'][0]['options']==['user system','onrestart restart surfaceflinger']
     assert j['manifests'][0]['target_level']=='8' and j['manifests'][0]['hals'][0]['versions']==['3']
 print('PASS: continued init declarations and VINTF inventory')
+
+with tempfile.TemporaryDirectory() as temp:
+    d=Path(temp)
+    run([os.environ.get('CC','cc'),'-Wall','-Wextra','-Werror','-I',ROOT/'runtime/pd2425/include',ROOT/'runtime/pd2425/tests/identity_keys_test.c','-o',d/'identity_keys'])
+    run([d/'identity_keys'])

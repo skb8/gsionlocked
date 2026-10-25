@@ -19,7 +19,7 @@ def main():
     keys=['ro.product.device','ro.product.model','ro.product.cpu.abi','ro.build.version.sdk','ro.build.fingerprint','ro.boot.flash.locked','ro.boot.verifiedbootstate','ro.soc.model','ro.vendor.build.version.sdk','ro.vivo.os.build.display.id']
     props={key:read('getprop '+key) for key in keys}
     def value(key):return props[key]['stdout'] if props[key]['exit']==0 else ''
-    matched=value('ro.product.device')==profile['device'] and value('ro.build.version.sdk')=='36' and value('ro.product.cpu.abi')=='arm64-v8a' and value('ro.build.fingerprint')==profile['fingerprint']
+    matched=value('ro.product.device')==profile['device'] and value('ro.build.version.sdk')=='36' and value('ro.product.cpu.abi')=='arm64-v8a' and value('ro.build.fingerprint') in profile.get('accepted_host_fingerprints',[profile['fingerprint']])
     commands={'identity':'id','kernel':'uname -r','selinux':'getenforce','cgroup':'cat /sys/fs/cgroup/cgroup.controllers',
         'input_names':'for f in /sys/class/input/event*/device/name; do echo "$f"; cat "$f"; done',
         'watchdog_metadata':'for f in identity timeout nowayout state; do echo "$f"; cat /sys/class/watchdog/watchdog0/$f; done'}
@@ -28,7 +28,7 @@ def main():
     if a.root:
         checks['kernel_modules']=read('cat /proc/modules',root=True)
         checks['live_selinux_policy_hash']=read('sha256sum /sys/fs/selinux/policy',root=True)
-    report={'ota_identity_match':matched,'runtime_ready':False,'tested_combination':False,'properties':props,'checks':checks,'no_device_changes':True,
+    report={'host_profile_match':matched,'ota_identity_match':matched and value('ro.build.fingerprint')==profile['fingerprint'],'runtime_ready':False,'tested_combination':False,'properties':props,'checks':checks,'no_device_changes':True,
         'limitations':'Observations do not validate HAL handoff, watchdog adoption, root implementation or restoration.'}
     text=json.dumps(report,ensure_ascii=False,indent=2)+'\n'
     if a.output:a.output.write_text(text)

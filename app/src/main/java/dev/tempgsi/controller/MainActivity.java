@@ -74,8 +74,8 @@ public final class MainActivity extends Activity {
                 String abi=Build.SUPPORTED_ABIS.length==0?"":Build.SUPPORTED_ABIS[0];
                 String report="Устройство: "+Build.DEVICE+" / "+Build.MODEL+"\nAPI: "+Build.VERSION.SDK_INT+
                     "\nABI: "+abi+"\nFingerprint: "+Build.FINGERPRINT+
-                    "\nСовпадение с OTA: "+HostIdentity.matchesPd2425(Build.DEVICE,Build.VERSION.SDK_INT,abi,Build.FINGERPRINT)+
-                    "\nRuntime готов: нет.\nПроверка root: отдельной кнопкой.\nИзменений хоста не выполнялось.";
+                    "\nСовпадение профиля хоста: "+HostIdentity.matchesPd2425(Build.DEVICE,Build.VERSION.SDK_INT,abi,Build.FINGERPRINT)+
+                    "\nТочный fingerprint OTA: "+HostIdentity.matchesOtaFingerprint(Build.FINGERPRINT)+"\nRuntime готов: нет.\nПроверка root: отдельной кнопкой.\nИзменений хоста не выполнялось.";
                 runOnUiThread(()->new AlertDialog.Builder(this).setTitle("PD2425 — диагностика").setMessage(report).setPositiveButton("OK",null).show());
                 return "Диагностика завершена. Совпадение OTA не подтверждает совместимость runtime.";
             })));
@@ -88,6 +88,15 @@ public final class MainActivity extends Activity {
                 task("Чтение данных через root…",()->{
                     pd2425Report=Pd2425Diagnostics.collect(this);
                     return "Root-отчёт готов. Сохраните JSON и передайте его для анализа. Запуск GSI остаётся недоступен.";
+                });
+            }));
+            buttons.add(Ui.button(page,"Root-отчёт + тест cgroup",false,()->{
+                if(busy)return;
+                if(inside){status.setText("Проверяйте изоляцию в OriginOS.");return;}
+                pd2425Report=null;
+                task("Создание временной cgroup с двумя своими процессами…",()->{
+                    pd2425Report=Pd2425Diagnostics.collectWithCgroupTest(this);
+                    return "Отчёт с результатом теста готов. Сохраните JSON. Службы OriginOS не останавливались.";
                 });
             }));
             buttons.add(Ui.button(page,"Сохранить root-отчёт",false,()->{

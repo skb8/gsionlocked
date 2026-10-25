@@ -10,8 +10,11 @@
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/vfs.h>
+#include "identity.h"
+#include "return_keys.h"
 
-struct observed_service {const char *name,*exe;};
+struct observed_service {const char *name,*exe;struct pd_identity identity;};
 #include "services.generated.h"
 
 /* Only the test binary accepts a fixture root; production ignores environment. */
@@ -129,11 +132,15 @@ static void service_evidence(const struct observed_service *s) {
     fputs(",\"selinux_context\":",stdout);json_string(label);printf(",\"selinux_errno\":%d,\"status_errno\":%d,\"stat_errno\":%d",label_error,status_error,stat_error);
     const char *fields[]={"Uid:","Gid:","Groups:","CapEff:"};const char *names[]={"uid","gid","groups","cap_eff"};
     for(unsigned i=0;i<4;i++){char value[256];int error=status_field(status,fields[i],value);printf(",\"%s\":",names[i]);json_string(value);printf(",\"%s_errno\":%d",names[i],error);}
+    char identity_uid[256],identity_gid[256],identity_groups[256],identity_caps[256];
+    int identity_errors=status_field(status,"Uid:",identity_uid)|status_field(status,"Gid:",identity_gid)|status_field(status,"Groups:",identity_groups)|status_field(status,"CapEff:",identity_caps);
+    int identity_ok=stable&&!identity_errors&&!strcmp(pid_source,"init_property")&&!strcmp(exe,s->exe)&&pd_identity_matches(&s->identity,identity_uid,identity_gid,identity_groups,identity_caps,label)==1;
+    fputs(",\"identity_matches\":",stdout);fputs(!s->identity.known?"null":identity_ok?"true":"false",stdout);
     putchar('}');
 }
 static int bit_present(const unsigned char *bits,unsigned code){return !!(bits[code/8]&(1U<<(code%8)));}
 static void input_evidence(void) {
-    fputs("{\"devices\":[",stdout);int first=1,denied=0,other_errors=0;
+    fputs("{\"devices\":[",stdout);int first=1,denied=0,other_errors=0;struct pd_return_keys selected={.up_index=-1,.down_index=-1};
     for(int i=0;i<64;i++) {
         char path[64],full[PATH_MAX],name[128]={0};snprintf(path,sizeof(path),"/dev/input/event%d",i);
         const char *mapped=probe_path(path,full);if(!mapped)continue;
@@ -141,12 +148,32 @@ static void input_evidence(void) {
         unsigned char keys[(KEY_MAX+8)/8]={0};
         int name_error=ioctl(fd,EVIOCGNAME(sizeof(name)),name)<0?errno:0;
         name[sizeof(name)-1]=0;int keys_error=ioctl(fd,EVIOCGBIT(EV_KEY,sizeof(keys)),keys)<0?errno:0;close(fd);
+        pd_return_key_consider(&selected,i,PD_KEY_UP_NAME,PD_KEY_DOWN_NAME,name,name_error|keys_error,bit_present(keys,KEY_VOLUMEUP),bit_present(keys,KEY_VOLUMEDOWN),bit_present(keys,BTN_TOUCH));
         if(!first)putchar(',');
         first=0;
         fputs("{\"path\":",stdout);json_string(path);fputs(",\"name\":",stdout);json_string(name);
         printf(",\"name_errno\":%d,\"keys_errno\":%d,\"volume_up\":%s,\"volume_down\":%s,\"touch\":%s}",name_error,keys_error,!keys_error&&bit_present(keys,KEY_VOLUMEUP)?"true":"false",!keys_error&&bit_present(keys,KEY_VOLUMEDOWN)?"true":"false",!keys_error&&bit_present(keys,BTN_TOUCH)?"true":"false");
     }
-    printf("],\"denied\":%d,\"other_open_errors\":%d,\"scan_limit\":64}",denied,other_errors);
+    int valid=pd_return_keys_valid(&selected);char up[64]="",down[64]="";
+    if(valid){snprintf(up,sizeof(up),"/dev/input/event%d",selected.up_index);snprintf(down,sizeof(down),"/dev/input/event%d",selected.down_index);}
+    printf("],\"denied\":%d,\"other_open_errors\":%d,\"scan_limit\":64,\"return_keys\":{\"selection_valid\":%s,\"up_candidates\":%u,\"down_candidates\":%u,\"up_path\":",denied,other_errors,valid?"true":"false",selected.up_count,selected.down_count);
+    json_string(up);fputs(",\"down_path\":",stdout);json_string(down);fputs(",\"physical_chord_tested\":false}}",stdout);
+}
+static void watchdog_inventory(void) {
+    char full[PATH_MAX];const char *root=probe_path("/sys/class/watchdog",full);
+    DIR *dir=root?opendir(root):NULL;int error=dir?0:errno;struct dirent *entry;unsigned count=0;
+    printf("{\"class_errno\":%d,\"devices\":[",error);
+    while(dir&&(entry=readdir(dir))&&count<16){
+        const char *name=entry->d_name;if(strncmp(name,"watchdog",8))continue;
+        const char *end=name+8;if(!*end)continue;while(isdigit((unsigned char)*end))end++;
+        if(*end||strlen(name)>20)continue;
+        if(count++)putchar(',');
+        fputs("{\"name\":",stdout);json_string(name);
+        const char *fields[]={"identity","timeout","nowayout","state"};
+        for(unsigned i=0;i<4;i++){char path[128];putchar(',');json_string(fields[i]);putchar(':');snprintf(path,sizeof(path),"/sys/class/watchdog/%.20s/%s",name,fields[i]);json_file(path);}putchar('}');
+    }
+    if(dir)closedir(dir);
+    printf("],\"scan_limited\":%s,\"note\":\"No device open or fd adoption; missing class entries do not prove no OEM watchdog exists\"}",count>=16?"true":"false");
 }
 static void watchdog_evidence(void) {
     const char *fields[]={"identity","timeout","nowayout","state"};putchar('{');
@@ -176,16 +203,43 @@ static void watchdog_evidence(void) {
     if(processes)closedir(processes);
     printf("],\"owner_scan_errno\":%d,\"owner_scan_limited\":%s,\"fd_adoption_tested\":false}",scan_errno,scanned>=4096||owners>=16?"true":"false");
 }
+/* Directory metadata only: do not read gesture, IMEI or calibration attributes. */
+static void json_node_directory(const char *path) {
+    char full[PATH_MAX];const char *mapped=probe_path(path,full);DIR *dir=mapped?opendir(mapped):NULL;
+    int error=dir?0:errno;unsigned count=0;struct dirent *entry;
+    printf("{\"errno\":%d,\"entries\":[",error);
+    while(dir&&(entry=readdir(dir))&&count<64){
+        if(!strcmp(entry->d_name,".")||!strcmp(entry->d_name,".."))continue;
+        if(count++)putchar(',');
+        struct stat info;int stat_error=fstatat(dirfd(dir),entry->d_name,&info,AT_SYMLINK_NOFOLLOW)?errno:0;
+        fputs("{\"name\":",stdout);json_string(entry->d_name);
+        printf(",\"errno\":%d,\"mode\":%u,\"uid\":%lu,\"gid\":%lu}",stat_error,stat_error?0U:(unsigned)info.st_mode,stat_error?0UL:(unsigned long)info.st_uid,stat_error?0UL:(unsigned long)info.st_gid);
+    }
+    if(dir)closedir(dir);
+    printf("],\"limited\":%s,\"attribute_values_read\":false}",count>=64?"true":"false");
+}
 static void pd2425_json_report(int matched,const char *device,const char *sdk,const char *abi,const char *fp) {
-    fputs("{\"schema\":2,\"component\":",stdout);json_string(COMPONENT);
-    printf(",\"runtime_ready\":false,\"no_device_changes\":true,\"ota_identity_match\":%s,\"uid\":%lu",matched?"true":"false",(unsigned long)getuid());
+    fputs("{\"schema\":3,\"component\":",stdout);json_string(COMPONENT);
+    printf(",\"runtime_ready\":false,\"no_device_changes\":true,\"host_profile_match\":%s,\"ota_identity_match\":%s,\"uid\":%lu",matched?"true":"false",matched&&!strcmp(fp,PD2425_FINGERPRINT)?"true":"false",(unsigned long)getuid());
     const char *names[]={"device","sdk","abi","fingerprint"};const char *values[]={device,sdk,abi,fp};
     for(unsigned i=0;i<4;i++){putchar(',');json_string(names[i]);putchar(':');json_string(values[i]);}
     fputs(",\"kernel\":",stdout);json_file("/proc/sys/kernel/osrelease");
+    fputs(",\"root_context\":",stdout);json_file("/proc/self/attr/current");
+    fputs(",\"self_cgroup\":",stdout);json_file("/proc/self/cgroup");
+    fputs(",\"boot_id\":",stdout);json_file("/proc/sys/kernel/random/boot_id");
+    fputs(",\"boot_properties\":{",stdout);
+    const char *properties[]={"ro.boot.flash.locked","ro.boot.verifiedbootstate","ro.boot.vbmeta.device_state","sys.boot_completed"};
+    for(unsigned i=0;i<4;i++){char value[PROP_VALUE_MAX];__system_property_get(properties[i],value);if(i)putchar(',');json_string(properties[i]);putchar(':');json_string(value);}putchar('}');
+    char cgpath[PATH_MAX];const char *cg=probe_path("/sys/fs/cgroup",cgpath);struct statfs fs;int fs_error=cg&&statfs(cg,&fs)==0?0:errno;
+    printf(",\"cgroup_filesystem\":{\"errno\":%d,\"type\":%lu,\"is_cgroup2\":%s}",fs_error,fs_error?0UL:(unsigned long)fs.f_type,!fs_error&&(unsigned long)fs.f_type==0x63677270UL?"true":"false");
     fputs(",\"selinux_enforce\":",stdout);json_file("/sys/fs/selinux/enforce");
     fputs(",\"battery_temp\":",stdout);json_file("/sys/class/power_supply/battery/temp");
     fputs(",\"cgroup_controllers\":",stdout);json_file("/sys/fs/cgroup/cgroup.controllers");
     fputs(",\"watchdog\":",stdout);watchdog_evidence();
+    fputs(",\"watchdog_class\":",stdout);watchdog_inventory();
+    fputs(",\"touch_nodes\":{\"vts\":",stdout);json_node_directory("/sys/class/vts/vivo_ts");
+    fputs(",\"touchscreen\":",stdout);json_node_directory("/sys/touchscreen");
+    fputs(",\"module_parameters\":",stdout);json_node_directory("/sys/module/goodix_ts/parameters");putchar('}');
     fputs(",\"inputs\":",stdout);input_evidence();
     fputs(",\"services\":[",stdout);
     for(unsigned i=0;i<sizeof(pd_services)/sizeof(pd_services[0]);i++){if(i)putchar(',');service_evidence(&pd_services[i]);}

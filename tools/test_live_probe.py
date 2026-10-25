@@ -10,11 +10,17 @@ with tempfile.TemporaryDirectory() as temp:
     harness=r'''
 #define PD2425_TESTING
 #define open pd_test_open
+#define openat pd_test_openat
+#define mkdirat pd_test_mkdirat
+#define unlinkat pd_test_unlinkat
 #define ioctl pd_test_ioctl
 #define main probe_cli
 #include "preflight.c"
 #undef main
 #undef open
+#undef openat
+#undef mkdirat
+#undef unlinkat
 #undef ioctl
 #include <assert.h>
 #include <stdarg.h>
@@ -24,6 +30,12 @@ int pd_test_open(const char *path,int flags,...){
  assert(!strstr(path,"/dev/watchdog"));
  return syscall(SYS_openat,AT_FDCWD,path,flags,0);
 }
+int pd_test_openat(int dir,const char *path,int flags,...){
+ assert(!(flags&(O_WRONLY|O_RDWR|O_CREAT|O_TRUNC)));
+ return syscall(SYS_openat,dir,path,flags,0);
+}
+int pd_test_mkdirat(int dir,const char *path,mode_t mode){(void)dir;(void)path;(void)mode;assert(0&&"readonly probe attempted mkdir");return -1;}
+int pd_test_unlinkat(int dir,const char *path,int flags){(void)dir;(void)path;(void)flags;assert(0&&"readonly probe attempted unlink");return -1;}
 int pd_test_ioctl(int fd,unsigned long request,...){
  assert(_IOC_DIR(request)==_IOC_READ);
  va_list args;va_start(args,request);void *arg=va_arg(args,void*);va_end(args);
@@ -35,7 +47,7 @@ int __system_property_get(const char *key,char *value){
  if(!strcmp(key,"ro.product.device"))s=getenv("BAD_DEVICE")?"other":"PD2425";
  if(!strcmp(key,"ro.build.version.sdk"))s="36";
  if(!strcmp(key,"ro.product.cpu.abi"))s="arm64-v8a";
- if(!strcmp(key,"ro.build.fingerprint"))s=PD2425_FINGERPRINT;
+ if(!strcmp(key,"ro.build.fingerprint"))s=getenv("FP_ALIAS")?PD2425_FINGERPRINT_V000L1:PD2425_FINGERPRINT;
  if(!strncmp(key,"init.svc.",9))s="stopped";
  if(!strcmp(key,"init.svc.vendor.audio-hal")){
   s=(getenv("CHANGED_STATE")&&state_reads++)?"restarting":"running";
@@ -79,7 +91,7 @@ int main(int argc,char **argv){
         env={**os.environ,'PD2425_FIXTURE_ROOT':str(fixture),**extra}
         r=subprocess.run([binary,'--diagnose-json'],env=env,capture_output=True,text=True)
         assert r.returncode==(31 if extra.get('BAD_DEVICE') else 0),r.stderr
-        j=json.loads(r.stdout);assert j['schema']==2 and j['runtime_ready'] is False and j['no_device_changes'] is True
+        j=json.loads(r.stdout);assert j['schema']==3 and j['runtime_ready'] is False and j['no_device_changes'] is True
         return j
     j=collect();audio=next(s for s in j['services'] if s['name']=='vendor.audio-hal')
     assert audio['snapshot_stable'] and audio['pid_source']=='init_property' and audio['executable_matches']
@@ -88,11 +100,13 @@ int main(int argc,char **argv){
     assert j['watchdog']['fd_adoption_tested'] is False
     assert j['inputs']['devices'][0]['keys_errno']!=0 and not j['inputs']['devices'][0]['volume_up']
     profile=json.loads((ROOT/'profiles/pd2425-originos6.json').read_text())
+    for expected in profile['services']+profile.get('host_services',[]):expected.pop('observed_identity',None)
+    profile['service_alternatives']=[]
     reviewed=review(j,profile)
     assert reviewed['runtime_ready'] is False and not reviewed['observation_checks_passed']
-    assert any(x['code']=='return_key_capabilities_unknown' for x in reviewed['issues'])
-    clean=copy.deepcopy(j);clean['uid']=0
-    clean['inputs']['devices']=[{'keys_errno':0,'volume_up':True,'volume_down':True}]
+    assert any(x['code']=='physical_return_keys_unknown' for x in reviewed['issues'])
+    clean=copy.deepcopy(j);clean['uid']=0;clean['cgroup_filesystem']={'errno':0,'is_cgroup2':True}
+    clean['inputs']['devices']=[{'path':'/dev/input/event9','name':'gpio-keys','name_errno':0,'keys_errno':0,'touch':False,'volume_up':True,'volume_down':False},{'path':'/dev/input/event12','name':'pmic_resin','name_errno':0,'keys_errno':0,'touch':False,'volume_up':False,'volume_down':True}]
     for expected in profile.get('host_services',[]):
         if expected.get('required_running'):
             entry=next(x for x in clean['services'] if x['name']==expected['name'])
@@ -101,11 +115,12 @@ int main(int argc,char **argv){
     reviewed=review(clean,profile)
     assert reviewed['observation_checks_passed'] and reviewed['runtime_ready'] is False
     assert reviewed['remaining_device_tests'] and reviewed['observed_process_credentials']
-    for field,value,code in [('fingerprint','drift','ota_mismatch'),('uid',2000,'root_unconfirmed'),('selinux_enforce',{'errno':0,'value':'0'},'selinux_not_enforcing'),('battery_temp',{'errno':0,'value':'420'},'temperature_high')]:
+    for field,value,code in [('fingerprint','drift','host_profile_mismatch'),('uid',2000,'root_unconfirmed'),('selinux_enforce',{'errno':0,'value':'0'},'selinux_not_enforcing'),('battery_temp',{'errno':0,'value':'420'},'temperature_high')]:
         bad=copy.deepcopy(clean);bad[field]=value;r=review(bad,profile)
         assert not r['observation_checks_passed'] and r['runtime_ready'] is False
         assert any(x['code']==code for x in r['issues'])
     assert review({'schema':1},profile)['runtime_ready'] is False
+    aliased=collect(FP_ALIAS='1');assert aliased['host_profile_match'] and not aliased['ota_identity_match']
 
     assert not collect(BAD_DEVICE='1')['ota_identity_match']
     for env in [{'CHANGED_PID':'1'},{'CHANGED_STATE':'1'}]:
