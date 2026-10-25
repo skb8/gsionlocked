@@ -1,6 +1,7 @@
 """Build public Android arm64 components; this is NOT a runtime installer."""
 import argparse, hashlib, json, subprocess, zipfile
 from pathlib import Path
+from pd2425_build import generate_services
 ROOT=Path(__file__).resolve().parents[1]
 def main():
     p=argparse.ArgumentParser(description=__doc__)
@@ -12,13 +13,14 @@ def main():
     cc=ndk/'toolchains/llvm/prebuilt/linux-x86_64/bin/clang'
     out=ROOT/'dist/runtime';out.mkdir(parents=True,exist_ok=True)
     build=ROOT/'build/runtime';build.mkdir(parents=True,exist_ok=True)
+    probe_include=generate_services(build/'probe-include')
     src=ROOT/'runtime/dm1q/src';inc=ROOT/'runtime/dm1q/include'
     common=[str(cc),'--target=aarch64-linux-android33','-O2','-Wall','-Wextra','-Werror']
     jobs=[]
     for name in ['loader198','guardian198']:
         jobs.append((name+'-dm1q',common+['-static','-I',str(inc)]+(['-DTEMPGSI_HAL_PROFILE151'] if name=='loader198' else [])+[str(src/(name+'.c'))]))
     for component in ['loader','guardian']:
-        jobs.append((component+'-pd2425-preflight',common+['-static','-I',str(ROOT/'runtime/pd2425/include'),'-DCOMPONENT="'+component+'"',str(ROOT/'runtime/pd2425/src/preflight.c')]))
+        jobs.append((component+'-pd2425-preflight',common+['-static','-I',str(probe_include),'-I',str(ROOT/'runtime/pd2425/include'),'-DCOMPONENT="'+component+'"',str(ROOT/'runtime/pd2425/src/preflight.c')]))
     for name in ['artd_session','private_selinux_mount']:
         jobs.append((name.replace('_','-')+'.so',common+['-shared','-fPIC',str(src/(name+'.c')),'-ldl']))
     jobs.append(('userspace-property-seed',common+['-static',str(src/'userspace_property_seed.c'),'-ldl']))

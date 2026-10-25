@@ -1,10 +1,11 @@
 """Host-side identity and CLI refusal tests; no device or root required."""
 from pathlib import Path
 import os, subprocess, tempfile, json
+from pd2425_build import generate_services
 ROOT=Path(__file__).resolve().parents[1]
 def run(args,**kw):return subprocess.run([str(x) for x in args],check=True,**kw)
 with tempfile.TemporaryDirectory() as tmp:
-    d=Path(tmp);cc=os.environ.get('CC','cc')
+    d=Path(tmp);cc=os.environ.get('CC','cc');generate_services(d)
     run([cc,'-Wall','-Wextra','-Werror','-I',ROOT/'runtime/pd2425/include',ROOT/'runtime/pd2425/tests/profile_test.c','-o',d/'profile'])
     run([d/'profile'])
     (d/'sys').mkdir()

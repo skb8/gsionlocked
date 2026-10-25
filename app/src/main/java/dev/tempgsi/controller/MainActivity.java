@@ -10,7 +10,9 @@ import java.util.concurrent.*;
 public final class MainActivity extends Activity {
     private TextView status,memory,imageLabel;
     private String selectedSha,selectedName;
-    private static final int PICK_GSI=401;
+    private static final int PICK_GSI=401,EXPORT_PD2425=402;
+    private volatile String pd2425Report;
+    private String pendingExportReport;
     private TextView terminal;
     private ScrollView terminalScroll;
     private LinearLayout launchPanel;
@@ -78,6 +80,26 @@ public final class MainActivity extends Activity {
                 return "Диагностика завершена. Совпадение OTA не подтверждает совместимость runtime.";
             })));
         }
+        if(HostIdentity.isPd2425(Build.DEVICE)) {
+            buttons.add(Ui.button(page,"Root-отчёт PD2425",false,()->{
+                if(busy)return;
+                if(inside){status.setText("Собирайте отчёт в OriginOS.");return;}
+                pd2425Report=null;
+                task("Чтение данных через root…",()->{
+                    pd2425Report=Pd2425Diagnostics.collect(this);
+                    return "Root-отчёт готов. Сохраните JSON и передайте его для анализа. Запуск GSI остаётся недоступен.";
+                });
+            }));
+            buttons.add(Ui.button(page,"Сохранить root-отчёт",false,()->{
+                if(busy)return;
+                if(pd2425Report==null){status.setText("Сначала соберите Root-отчёт PD2425.");return;}
+                pendingExportReport=pd2425Report;
+                android.content.Intent save=new android.content.Intent(android.content.Intent.ACTION_CREATE_DOCUMENT)
+                    .setType("application/json").addCategory(android.content.Intent.CATEGORY_OPENABLE)
+                    .putExtra(android.content.Intent.EXTRA_TITLE,"pd2425-live-report.json");
+                startActivityForResult(save,EXPORT_PD2425);
+            }));
+        }
         buttons.add(Ui.button(page,"Storage",false,this::chooseMemory));Ui.space(page,18);
         TextView channel=Ui.text(page,"t.me/gsionlocked",14,Ui.TEXT);channel.setGravity(Gravity.CENTER);channel.setPaintFlags(channel.getPaintFlags()|android.graphics.Paint.UNDERLINE_TEXT_FLAG);channel.setPadding(0,Ui.dp(this,12),0,Ui.dp(this,12));channel.setMinHeight(Ui.dp(this,48));channel.setContentDescription("Open gsionlocked Telegram channel");channel.setOnClickListener(v->{try{startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,android.net.Uri.parse("https://t.me/gsionlocked")));}catch(android.content.ActivityNotFoundException e){status.setText("Install Telegram or a browser to open this link.");}});
         launchPanel=Ui.card(page);Ui.text(launchPanel,"Launch output",14,Ui.TEXT);
@@ -99,7 +121,21 @@ public final class MainActivity extends Activity {
             }),()->{android.content.Intent pick=new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(android.content.Intent.CATEGORY_OPENABLE);pick.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);startActivityForResult(pick,PICK_GSI);});
     }
     @Override protected void onActivityResult(int request,int result,android.content.Intent data){
-        super.onActivityResult(request,result,data);if(request!=PICK_GSI||result!=RESULT_OK||data==null||data.getData()==null)return;
+        super.onActivityResult(request,result,data);
+        if(request==EXPORT_PD2425){
+            final String report=pendingExportReport;pendingExportReport=null;
+            if(result!=RESULT_OK||data==null||data.getData()==null)return;
+            final android.net.Uri destination=data.getData();
+            task("Сохранение отчёта…",()->{
+                if(report==null)throw new IOException("Отчёт не сохранён в памяти. Соберите его повторно.");
+                try(OutputStream out=getContentResolver().openOutputStream(destination,"wt")){
+                    if(out==null)throw new IOException("Не удалось открыть файл отчёта.");
+                    out.write(report.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                }
+                return "JSON сохранён. Отчёт никуда не отправлялся автоматически.";
+            });return;
+        }
+        if(request!=PICK_GSI||result!=RESULT_OK||data==null||data.getData()==null)return;
         android.net.Uri uri=data.getData();launchPanel.setVisibility(android.view.View.VISIBLE);launchActive=true;
         synchronized(logText){logText.setLength(0);}appendLog("Importing image…");
         task("Importing GSI…",()->{

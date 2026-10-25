@@ -77,5 +77,39 @@
     "effective SELinux policy and enforcing guest support",
     "complete GSI/APEX/shim/bootstrap dependencies",
     "device validation of HAL/Binder/cgroup/network/root"
+  ],
+  "host_services": [
+    {
+      "name": "surfaceflinger",
+      "executable": "/system/bin/surfaceflinger",
+      "required_running": true
+    },
+    {
+      "name": "zygote",
+      "executable": "/system/bin/app_process64",
+      "required_running": true
+    },
+    {
+      "name": "zygote_third",
+      "executable": "/system/bin/app_process64"
+    },
+    {
+      "name": "audioserver",
+      "executable": "/system/bin/audioserver",
+      "required_running": true
+    },
+    {
+      "name": "netd",
+      "executable": "/system/bin/netd",
+      "required_running": true
+    },
+    {
+      "name": "thermal-engine",
+      "executable": "/vendor/bin/thermal-engine-v2"
+    },
+    {
+      "name": "vendor.thermal-hal",
+      "executable": "/vendor/bin/hw/android.hardware.thermal-service.qti"
+    }
   ]
 }

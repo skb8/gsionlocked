@@ -1,4 +1,5 @@
-/* Diagnostic-only PD2425 port: no mounts, writes, ioctls or service control. */
+/* Diagnostic-only PD2425 port: no mounts, writes, service control or ioctl setters. */
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -7,9 +8,10 @@
 #ifndef COMPONENT
 #define COMPONENT "preflight"
 #endif
+#include "probe_json.h"
 int main(int argc,char **argv) {
-    if(argc!=2 || (strcmp(argv[1],"--diagnose") && strcmp(argv[1],"--check-host"))) {
-        fputs("PD2425_HANDOFF_UNAVAILABLE: only --diagnose / --check-host; no changes made\n",stderr);
+    if(argc!=2 || (strcmp(argv[1],"--diagnose") && strcmp(argv[1],"--check-host") && strcmp(argv[1],"--diagnose-json"))) {
+        fputs("PD2425_HANDOFF_UNAVAILABLE: only --diagnose / --check-host / --diagnose-json; no changes made\n",stderr);
         return 78;
     }
     char device[PROP_VALUE_MAX],sdk[PROP_VALUE_MAX],abi[PROP_VALUE_MAX],fp[PROP_VALUE_MAX];
@@ -18,6 +20,7 @@ int main(int argc,char **argv) {
     __system_property_get("ro.product.cpu.abi",abi);
     __system_property_get("ro.build.fingerprint",fp);
     int matched=pd2425_identity(device,sdk,abi,fp);
+    if(!strcmp(argv[1],"--diagnose-json")){pd2425_json_report(matched,device,sdk,abi,fp);return matched?0:31;}
     printf("component=%s\ndevice=%s\nsdk=%s\nabi=%s\nfingerprint=%s\nota_identity_match=%d\n",COMPONENT,device,sdk,abi,fp,matched);
     if(!strcmp(argv[1],"--diagnose")) {
         const char *keys[]={"ro.boot.flash.locked","ro.boot.verifiedbootstate","ro.soc.model","ro.vivo.os.version","ro.vivo.product.version","init.svc.surfaceflinger","init.svc.zygote","init.svc.audioserver"};
