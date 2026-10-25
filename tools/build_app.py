@@ -43,12 +43,14 @@ def main():
     run(clang, '--target=aarch64-linux-android33', '-fuse-ld=lld', '-static', '-O2', '-Wall', '-Wextra', '-Werror', src/'session_launch.c', '-o', build/'assets/session-launch')
     probe_include=generate_services(build/'probe-include')
     run(clang, '--target=aarch64-linux-android33', '-fuse-ld=lld', '-static', '-O2', '-Wall', '-Wextra', '-Werror', '-DCOMPONENT="apk-probe"', '-I', ROOT/'runtime/pd2425/include', '-I', probe_include, ROOT/'runtime/pd2425/src/preflight.c', '-o', build/'libpd2425_probe.so')
+    run(clang, '--target=aarch64-linux-android33', '-fuse-ld=lld', '-static', '-O2', '-Wall', '-Wextra', '-Werror', '-DCOMPONENT="apk-gsi-preview"', '-I', ROOT/'runtime/pd2425/include', '-I', probe_include, ROOT/'runtime/pd2425/src/gsi_preview.c', '-o', build/'libpd2425_gsi.so')
     run(java/('javac'+exe), '-encoding', 'UTF-8', '-source', '8', '-target', '8', '-cp', android, '-d', build/'classes', *sorted((src/'java').rglob('*.java')))
     run(java/('java'+exe), '-cp', tools/'lib/d8.jar', 'com.android.tools.r8.D8', '--min-api', '31', '--lib', android, '--output', build/'dex', *sorted((build/'classes').rglob('*.class')))
     run(tools/('aapt'+exe), 'package', '-f', '-M', src/'AndroidManifest.xml', '-S', src/'res', '-A', build/'assets', '-I', android, '-F', build/'unsigned.apk')
     with zipfile.ZipFile(build/'unsigned.apk', 'a') as apk:
         apk.write(build/'dex/classes.dex', 'classes.dex')
         apk.write(build/'libpd2425_probe.so', 'lib/arm64-v8a/libpd2425_probe.so')
+        apk.write(build/'libpd2425_gsi.so', 'lib/arm64-v8a/libpd2425_gsi.so')
         if args.root_client_apk:
             digest = hashlib.sha256(args.root_client_apk.read_bytes()).hexdigest()
             if digest != '1417081413bf7ab1de8e440ecbcb62685037c8f28f048f0f8b79e305b31ab916':

@@ -89,3 +89,11 @@ for field,value in [('name','unknown'),('errno',0)]:
     bad=copy.deepcopy(r);bad['self_tests']['guard']['children'][1]['guard']['denials'][0][field]=value;assert not review(bad,p)['syscall_guard_test_passed']
 bad=copy.deepcopy(r);bad['self_tests']['guard']['parent_guard_checked']=False;assert not review(bad,p)['syscall_guard_test_passed']
 print('PASS: limited syscall-guard proof requires all 12 named denials, rootfs and parent preservation')
+
+# A real pinned userspace preview is distinct from a complete Android boot.
+pin=json.loads((ROOT/'profiles/pd2425-evox-preview.json').read_text())
+pv={'schema':1,'component':'gsi-preview','runtime_ready':False,'guest_boot_complete':False,'host_services_changed':False,'uid':0,'fingerprint':r['fingerprint'],'boot_id':r['boot_id'],'image_sha256':pin['image_sha256'],'preview_passed':True,'prepared':True,'capabilities_zero':True,'namespaces_private':True,'metadata_received':True,'parent_unchanged':True,'loops_released':True,'temporary_directory_removed':True,'errno':0,'child_errno':0,'cleanup_errno':0,'spawned':1,'reaped':1,'exit_code':0,'signal':0,'guest_uid':65534,'guest_gid':65534,'no_new_privs':1,'filter_verified':5,'stage':'complete','child_stage':'exec','output':'PD2425_GSI_SHELL_OK\n'}
+r['self_tests']={'gsi_preview':pv};assert review(r,p)['gsi_shell_preview_passed'] and not review(r,p)['runtime_ready']
+for field,value in [('guest_uid',0),('capabilities_zero',False),('filter_verified',0),('image_sha256','different'),('loops_released',False),('output',''),('guest_boot_complete',True)]:
+    bad=copy.deepcopy(r);bad['self_tests']['gsi_preview'][field]=value;assert not review(bad,p)['gsi_shell_preview_passed']
+print('PASS: GSI preview proof requires exact upstream image, capless UID, exec result, filter, parent and loop cleanup; never full boot')

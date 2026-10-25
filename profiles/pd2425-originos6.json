@@ -152,11 +152,11 @@
   ],
   "services_evidence": "OTA declarations and owner-observed credentials; default gatekeeper selected in live reports. Not instructions for service control.",
   "blocked_on": [
-    "display/input ownership and exact restore",
-    "live watchdog owner/driver/timeout/restore contract",
-    "effective SELinux policy and enforcing guest support",
-    "complete GSI/APEX/shim/bootstrap dependencies",
-    "isolated guest HAL/service-manager integration; PID/rootfs/BPF isolation and full lifecycle"
+    "display/input ownership for physical guest session",
+    "watchdog behavior during hardware takeover and reboot recovery",
+    "effective enforcing SELinux policy and guest service support",
+    "complete GSI/APEX/shim/framework bootstrap dependencies",
+    "isolated guest HAL/service-manager integration and full lifecycle"
   ],
   "host_services": [
     {
@@ -354,6 +354,18 @@
       "proc_mounted": false,
       "pid_isolation": false,
       "scope": "trusted inert tmpfs/chroot only, shared host PID namespace; no Android/GSI execution or complete sandbox validation"
+    },
+    "syscall_guard": {
+      "state": "owner-device-passed",
+      "probe_version": "0.1.10-pd2425-syscall-guard",
+      "probe_source_commit": "6b91aa10ca6d918642640a6ff0247f40bb616fc2",
+      "source_sha256": "d712f1e036ea50b68bd5cd8f1bdd1118477513252207d24023f68bc56d7edd72",
+      "named_syscall_denials": 12,
+      "no_new_privs": true,
+      "seccomp_filter_mode": true,
+      "parent_guard_state_unchanged": true,
+      "temporary_cleanup_complete": true,
+      "scope": "limited union deny list in trusted rootfs-only children; not an Android service policy or complete sandbox"
     }
   },
   "experimental_components": {
@@ -371,13 +383,12 @@
       "group_created": false,
       "interpretation": "PID namespace entry absent; CONFIG_PID_NS disabled is a hypothesis, not a verified kernel config"
     },
-    "syscall_guard": {
+    "gsi_linker_shell_preview": {
       "state": "implemented-device-unvalidated",
-      "probe_version": "0.1.10-pd2425-syscall-guard",
-      "command": "--test-guard",
-      "policy": "limited deny list of 12 signal/ptrace/remote-memory/BPF/perf syscalls",
-      "scope": "two trusted rootfs-only children; not a complete sandbox or Android service policy",
-      "launch_authorization": false
+      "profile": "profiles/pd2425-evox-preview.json",
+      "command": "pd2425-gsi-preview --preview-gsi IMAGE",
+      "scope": "exact unmodified upstream EvoX linker/shell with UID65534, zero capabilities, default-deny policy; no Android framework or HAL",
+      "full_launch_authorization": false
     }
   },
   "live_namespace_entries": {
@@ -395,5 +406,12 @@
       "user"
     ],
     "scope": "proc namespace-entry observations; exact kernel config not independently read"
+  },
+  "recovery_policy": {
+    "hot_restore_required": false,
+    "reboot_recovery_accepted": true,
+    "source": "owner explicitly accepts reboot recovery and defers fast switching",
+    "headless_preview": "no host service or hardware takeover; own child/loop cleanup still required",
+    "future_hardware_handoff": "reboot recovery contract must be validated; source partition/data protection remains mandatory"
   }
 }

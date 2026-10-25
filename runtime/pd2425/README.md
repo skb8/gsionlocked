@@ -113,3 +113,19 @@ integration is pending. This limited union policy is not a complete sandbox or
 an Android service policy (e.g. blanket tgkill denial may break Java). No guest
 or host service is executed/controlled. All exact host/root/Enforcing and cleanup
 gates remain in force; unsupported/failed setup never authorizes launch.
+
+
+0.1.11 adds a separate pd2425-gsi-preview executable, packaged as
+libpd2425_gsi.so. It pins an unmodified upstream EvoX Vanilla raw ext4 image and
+runtime APEX, creates private mount/network namespaces, attaches read-only
+AUTOCLEAR loops, then executes the GSI linker/mksh with UID/GID65534, zero caps,
+no_new_privs, closed inherited FDs and a new default-deny seccomp allowlist.
+Only a fixed printf command executes; no Android framework/HAL or host service
+control. Time/resource/output bounds, owned pidfd termination, loop release and
+parent namespace/root checks are required. --verify-image is read-only for host
+preparation. --preview-gsi requires the exact PD2425 host/root/Enforcing/image.
+See the detailed Russian guide and profiles/pd2425-evox-preview.json.
+The owner accepts reboot recovery, so hot restore is deferred; source partition
+and data protection remain mandatory. Physical takeover is still unavailable.
+The previous syscall-guard test is now device-confirmed; real GSI preview is
+implemented but device-unvalidated. No GSI/Vivo binaries are distributed.

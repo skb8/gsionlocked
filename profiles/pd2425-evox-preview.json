@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "state": "implemented-device-unvalidated",
+  "mode": "headless-linker-shell",
+  "full_android_boot": false,
+  "hot_restore_required": false,
+  "recovery": "owner accepts reboot; headless preview does not stop host services",
+  "source_release": "https://github.com/Doze-off/EvoX_treble/releases/tag/2026-09-20",
+  "archive_url": "https://github.com/Doze-off/EvoX_treble/releases/download/2026-09-20/EvoX-11.11-GSI_treble_arm64-ab-VANILLA-20260920.img.xz",
+  "archive_sha256": "f3f8bc5a3863ebb40aafff4adcd242df1f30627eded88cb9d1688affd8353705",
+  "image_name": "EvoX-11.11-GSI_treble_arm64-ab-VANILLA-20260920.img",
+  "image_bytes": 3172872192,
+  "image_sha256": "2a0bd888510fe3415fbdcebb719c2a99d32801f09ad001333e429f6ebc7e9d3e",
+  "sdk": 36,
+  "abi": "arm64-v8a",
+  "filesystem": "raw-ext4",
+  "runtime_apex": {
+    "path": "system/apex/com.android.runtime.apex",
+    "bytes": 12939264,
+    "sha256": "7d4cb81f13e71289681148b610dff0e8f234d780640ac452367e3776704390c8",
+    "payload_offset": 4096,
+    "payload_bytes": 12849152,
+    "payload_sha256": "523bda4f34a453d0df9538197c1139d4b3a7f88b26217f80255f92fb5a6e0e3f",
+    "filesystem": "ext4"
+  },
+  "samsung_overlays": false,
+  "guest_uid": 65534,
+  "guest_gid": 65534,
+  "capabilities": "all zero",
+  "policy": "preview default-deny seccomp; no fork/network/privilege/loop/ioctl in guest",
+  "writes": "no partition or source-image writes; transient private mounts/loop attachments only",
+  "archive_bytes": 1160507536
+}

@@ -21,6 +21,7 @@ def main():
         jobs.append((name+'-dm1q',common+['-static','-I',str(inc)]+(['-DTEMPGSI_HAL_PROFILE151'] if name=='loader198' else [])+[str(src/(name+'.c'))]))
     for component in ['loader','guardian']:
         jobs.append((component+'-pd2425-preflight',common+['-static','-I',str(probe_include),'-I',str(ROOT/'runtime/pd2425/include'),'-DCOMPONENT="'+component+'"',str(ROOT/'runtime/pd2425/src/preflight.c')]))
+    jobs.append(('pd2425-gsi-preview',common+['-static','-I',str(probe_include),'-I',str(ROOT/'runtime/pd2425/include'),str(ROOT/'runtime/pd2425/src/gsi_preview.c')]))
     for name in ['artd_session','private_selinux_mount']:
         jobs.append((name.replace('_','-')+'.so',common+['-shared','-fPIC',str(src/(name+'.c')),'-ldl']))
     jobs.append(('userspace-property-seed',common+['-static',str(src/'userspace_property_seed.c'),'-ldl']))

@@ -24,8 +24,10 @@ final class GsiPicker {
         Ui.space(body,12);TextView title=Ui.text(body,"Select GSI",25,Ui.TEXT);title.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
         TextView current=Ui.text(body,selected==null?"No image selected":"Selected: "+selected,13,Ui.MUTED);current.setMaxLines(2);current.setEllipsize(android.text.TextUtils.TruncateAt.END);Ui.space(body,22);
 
+        if(!HostIdentity.isPd2425(android.os.Build.DEVICE)){
         LinearLayout existing=Ui.card(body);row(existing,activity,"Prepared EvoX","Android 16 · Galaxy S23",true);
         Ui.button(existing,"Use prepared image",true,()->{dialog.dismiss();prepared.run();});
+        }
         Ui.space(body,6);
         LinearLayout file=Ui.card(body);row(file,activity,"Image file","Import a raw ext4 .img",false);
         Ui.button(file,"Browse files",false,()->{dialog.dismiss();browse.run();});

@@ -48,6 +48,7 @@ public final class MainActivity extends Activity {
         buttons.add(Ui.button(page,"Check root",false,()->task("Checking root…",()->{String r=RootCommands.run(this,"id");if(!r.contains("uid=0(root)"))throw new IOException("Allow root access in KernelSU.");return "Root access confirmed.";})));
         buttons.add(Ui.button(page,"Start",true,()->{
             if(inside){status.setText("EvoX is already running.");return;}
+            if(HostIdentity.isPd2425(Build.DEVICE)){status.setText("Для первого этапа используйте «Запустить linker/sh из GSI». Полный Android пока не готов.");return;}
             if(busy)return;if(selectedSha==null){status.setText("Select a GSI first.");return;}launchActive=true;sessionExit=null;sessionError=null;synchronized(logText){logText.setLength(0);}launchPanel.setVisibility(android.view.View.VISIBLE);launchPanel.post(()->launchPanel.requestRectangleOnScreen(new android.graphics.Rect(0,0,launchPanel.getWidth(),launchPanel.getHeight()),false));
             final int requested=mib;final String imageSha=selectedSha;task("Starting…",()->{
                 DeviceProfile.requireHost();
@@ -69,7 +70,7 @@ public final class MainActivity extends Activity {
             });
         }));
         if(HostIdentity.isPd2425(Build.DEVICE)) {
-            status.setText("PD2425: диагностика доступна; запуск GSI пока не поддерживается.");
+            status.setText("PD2425: доступен ограниченный запуск linker/sh из GSI; полный Android пока не готов.");
             buttons.add(Ui.button(page,"Диагностика PD2425",false,()->task("Чтение сведений…",()->{
                 String abi=Build.SUPPORTED_ABIS.length==0?"":Build.SUPPORTED_ABIS[0];
                 String report="Устройство: "+Build.DEVICE+" / "+Build.MODEL+"\nAPI: "+Build.VERSION.SDK_INT+
@@ -81,6 +82,15 @@ public final class MainActivity extends Activity {
             })));
         }
         if(HostIdentity.isPd2425(Build.DEVICE)) {
+            buttons.add(Ui.button(page,"Запустить linker/sh из GSI",true,()->{
+                if(busy)return;
+                if(inside){status.setText("Запускайте preview из OriginOS.");return;}
+                pd2425Report=null;
+                task("Проверка SHA-256 образа и ограниченный запуск linker/sh…",()->{
+                    pd2425Report=Pd2425Diagnostics.collectGsiPreview(this,selectedSha);
+                    return "Результат запуска готов. Сохраните root-отчёт. Полный Android этим этапом не запускается.";
+                });
+            }));
             buttons.add(Ui.button(page,"Root-отчёт PD2425",false,()->{
                 if(busy)return;
                 if(inside){status.setText("Собирайте отчёт в OriginOS.");return;}
