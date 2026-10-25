@@ -1,7 +1,7 @@
 # PD2425 diagnostic port
 
 OTA-analyzed; host identities, own-child cgroup.kill and root-only mount/network/BinderFS probe tested on PD2425. **Not a runnable GSI environment.**
-The preflight executables accept --check-host / --diagnose / --diagnose-json and explicit --test-cgroup / --test-isolation / --test-bootstrap.
+The preflight executables accept --check-host / --diagnose / --diagnose-json and explicit --test-cgroup / --test-isolation / --test-bootstrap / --test-rootfs.
 For observation modes exit 0 means an exact allowlisted host identity, never readiness; exit 31 means mismatch;
 78 rejects unsupported operations. Reports always contain runtime_ready=0.
 Observation modes do not write. Observation modes never mount, control host services, change SELinux or open watchdog devices. The explicit cgroup test only creates/migrates/kills its own two children in a fresh group and removes it. The separate --test-isolation mode mounts tmpfs/BinderFS only inside those children's private mount namespaces.
@@ -81,3 +81,18 @@ A second exact-membership check precedes group kill in every explicit test.
 Failure cleanup never group-kills a changed group, only unreaped owned children.
 The inert scaffold is device-unvalidated and is not an untrusted-code sandbox.
 No launch authorization or hardware handoff is provided. See the Russian guide.
+
+
+0.1.8 phone result: stat /proc/self/ns/pid returned ENOENT before any group or
+child creation. PID namespace support is not established (CONFIG_PID_NS=n is
+consistent with this but not proven). 0.1.9 reports the exact setup stage and
+read-only namespace-entry availability. Strict --test-bootstrap still refuses.
+The original Samsung loader uses a shared PID namespace, so PID1 was an extra
+experiment rather than its mandatory architecture. A shared-PID guest still
+requires the original signal/seccomp/BPF and filesystem protections.
+
+The separate --test-rootfs uses two ordinary owned children, private read-only
+tmpfs/chroot and FD closure. It never mounts proc and verifies /proc is absent.
+It has a separate rootfs-self-test contract with pid_namespace_required=false
+and proc_required=false. Its success cannot validate PID/proc/Binder isolation,
+Android bootstrap or an untrusted-code sandbox. Device validation is pending.

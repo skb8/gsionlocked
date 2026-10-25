@@ -68,3 +68,12 @@ for field,value in [('proc_pid_count',2),('pid',2),('ppid',1),('proc_self_pid',9
 for field,value in [('uid',2000),('selinux_enforce',{'errno':0,'value':'0'}),('sdk','35')]:
     bad=copy.deepcopy(r);bad[field]=value;assert not review(bad,p)['bootstrap_test_passed']
 print('PASS: bootstrap proof requires private PID1/proc/rootfs, FD closure, original host/root/Enforcing and cleanup')
+
+rf=copy.deepcopy(bs);rf.update(component='rootfs-self-test',pid_namespace_required=False,proc_required=False,parent_pid_namespace={'device':0,'inode':0})
+for i,child in enumerate(rf['children']):child.update(pid=400+i,ppid=200,proc_self_pid=0,proc_pid_count=0,proc_read_only=False,pid_namespace={'device':0,'inode':0})
+r['self_tests']={'rootfs':rf}
+result=review(r,p);assert result['rootfs_test_passed'] and not result['bootstrap_test_passed'] and not result['namespace_test_passed'] and not result['runtime_ready']
+for field,value in [('component','bootstrap-self-test'),('proc_required',True),('pid_namespace_required',True)]:
+    bad=copy.deepcopy(r);bad['self_tests']['rootfs'][field]=value;assert not review(bad,p)['rootfs_test_passed']
+bad=copy.deepcopy(r);bad['self_tests']={'bootstrap':bad['self_tests']['rootfs']};assert not review(bad,p)['bootstrap_test_passed']
+print('PASS: rootfs-only proof cannot claim PID/proc/Binder isolation or bootstrap readiness')

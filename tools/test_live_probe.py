@@ -94,7 +94,11 @@ int main(int argc,char **argv){
         assert r.returncode==(31 if extra.get('BAD_DEVICE') else 0),r.stderr
         j=json.loads(r.stdout);assert j['schema']==3 and j['runtime_ready'] is False and j['no_device_changes'] is True
         return j
-    j=collect();assert j['module_candidates']['names']==['goodix_ts','vts_core'] and 'deadbeef' not in json.dumps(j)
+    put('/proc/self/ns/mnt','fixture mount namespace')
+    put('/proc/self/ns/net','fixture network namespace')
+    j=collect();ns={e['name']:e for e in j['namespace_availability']}
+    assert ns['mnt']['available'] and ns['net']['available'] and ns['pid']['errno']==2 and not ns['pid']['available']
+    assert j['module_candidates']['names']==['goodix_ts','vts_core'] and 'deadbeef' not in json.dumps(j)
     audio=next(s for s in j['services'] if s['name']=='vendor.audio-hal')
     assert audio['snapshot_stable'] and audio['pid_source']=='init_property' and audio['executable_matches']
     assert audio['uid']=='1041\t1041\t1041\t1041' and audio['groups']=='1005 1006' and audio['start_ticks']==12345

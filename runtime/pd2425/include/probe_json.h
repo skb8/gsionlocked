@@ -234,12 +234,25 @@ static void json_touch_modules(void) {
     if(file){if(ferror(file))error=errno?errno:EIO;fclose(file);}
     printf("],\"errno\":%d,\"limited\":%s,\"raw_lines_exported\":false}",error,count>=32?"true":"false");
 }
+static void json_namespace_availability(void) {
+    const char *names[]={"mnt","net","pid","pid_for_children","ipc","uts","user","cgroup"};
+    putchar('[');
+    for(unsigned n=0;n<sizeof(names)/sizeof(names[0]);n++){
+        char name[96],mapped[PATH_MAX];snprintf(name,sizeof(name),"/proc/self/ns/%s",names[n]);
+        const char *path=probe_path(name,mapped);struct stat info;int error=path&&stat(path,&info)==0?0:errno;
+        if(n)putchar(',');
+        fputs("{\"name\":",stdout);json_string(names[n]);
+        printf(",\"errno\":%d,\"available\":%s}",error,error?"false":"true");
+    }
+    putchar(']');
+}
 static void pd2425_json_report(int matched,const char *device,const char *sdk,const char *abi,const char *fp) {
     fputs("{\"schema\":3,\"component\":",stdout);json_string(COMPONENT);
     printf(",\"runtime_ready\":false,\"no_device_changes\":true,\"host_profile_match\":%s,\"ota_identity_match\":%s,\"uid\":%lu",matched?"true":"false",matched&&!strcmp(fp,PD2425_FINGERPRINT)?"true":"false",(unsigned long)getuid());
     const char *names[]={"device","sdk","abi","fingerprint"};const char *values[]={device,sdk,abi,fp};
     for(unsigned i=0;i<4;i++){putchar(',');json_string(names[i]);putchar(':');json_string(values[i]);}
     fputs(",\"kernel\":",stdout);json_file("/proc/sys/kernel/osrelease");
+    fputs(",\"namespace_availability\":",stdout);json_namespace_availability();
     fputs(",\"root_context\":",stdout);json_file("/proc/self/attr/current");
     fputs(",\"self_cgroup\":",stdout);json_file("/proc/self/cgroup");
     fputs(",\"boot_id\":",stdout);json_file("/proc/sys/kernel/random/boot_id");

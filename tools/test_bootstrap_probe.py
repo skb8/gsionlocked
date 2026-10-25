@@ -49,26 +49,26 @@ static long bs_syscall(long,...);
 #include <assert.h>
 #include <stdarg.h>
 int __system_property_get(const char *k,char *v){(void)k;*v=0;return 0;}
-static struct {const char *fail;int index,unshared,private_set,tmp,proc,readonly,closed,root,cwd,entry;} fake;
+static struct {const char *fail;int index,shared_pid,create_mode,unshared,private_set,tmp,proc,readonly,closed,root,cwd,entry;} fake;
 static int fault(const char *name){if(fake.fail&&!strcmp(fake.fail,name)){errno=EACCES;return 1;}return 0;}
-static pid_t bs_getpid(void){return fake.fail&&!strcmp(fake.fail,"bad_pid")?4:1;}
-static pid_t bs_getppid(void){return fake.fail&&!strcmp(fake.fail,"bad_parent")?1:0;}
+static pid_t bs_getpid(void){return fake.shared_pid?400+fake.index:fake.fail&&!strcmp(fake.fail,"bad_pid")?4:1;}
+static pid_t bs_getppid(void){return fake.shared_pid?200:fake.fail&&!strcmp(fake.fail,"bad_parent")?1:0;}
 static int bs_unshare(int flags){assert(flags==CLONE_NEWNS);if(fault("unshare"))return -1;fake.unshared=1;return 0;}
 static int bs_mount(const char *src,const char *path,const char *type,unsigned long flags,const void *data){
  if(!strcmp(path,"/")){assert(fake.unshared&&!src&&!type&&!data&&flags==(MS_REC|MS_PRIVATE));if(fault("private"))return -1;fake.private_set=1;return 0;}
  assert(fake.private_set&&strstr(path,"/data/local/tmp/test_boot/")==path);
- if(flags&MS_REMOUNT){assert(fake.tmp&&fake.proc&&!src&&!type&&!data&&(flags&MS_RDONLY));if(fault("readonly"))return -1;fake.readonly=1;return 0;}
+ if(flags&MS_REMOUNT){assert(fake.tmp&&(fake.proc||fake.shared_pid)&&!src&&!type&&!data&&(flags&MS_RDONLY));if(fault("readonly"))return -1;fake.readonly=1;return 0;}
  if(!strcmp(type,"tmpfs")){assert(!strcmp(src,"tmpfs")&&!strcmp(data,"size=1m,mode=0700")&&(flags&MS_NODEV));if(fault("tmpfs"))return -1;fake.tmp=1;return 0;}
  assert(!strcmp(type,"proc")&&!strcmp(src,"proc")&&!data&&fake.tmp&&(flags&MS_RDONLY)&&(flags&MS_NODEV));if(fault("proc_mount"))return -1;fake.proc=1;return 0;
 }
 static int bs_mkdir(const char *path,mode_t mode){assert(fake.tmp&&strstr(path,"/proc")&&mode==0700);return fault("mkdir")?-1:0;}
 static int bs_stat(const char *path,struct stat *info){
  memset(info,0,sizeof(*info));
- if(!strcmp(path,"/proc/self/ns/pid")){assert(fake.private_set);if(fault("pid_stat"))return -1;info->st_dev=5;info->st_ino=fault("same_pid")?10:50+fake.index;return 0;}
+ if(!strcmp(path,"/proc/self/ns/pid")){assert(!fake.shared_pid);if(fake.create_mode){errno=ENOENT;return -1;}assert(fake.private_set);if(fault("pid_stat"))return -1;info->st_dev=5;info->st_ino=fault("same_pid")?10:50+fake.index;return 0;}
  if(!strcmp(path,"/proc/self/ns/mnt")){assert(fake.private_set);if(fault("mnt_stat"))return -1;info->st_dev=5;info->st_ino=fault("same_mnt")?20:100+fake.index;return 0;}
- assert(!strcmp(path,"/")&&fake.cwd);if(fault("root_stat"))return -1;info->st_dev=fault("same_root")?10:500+fake.index;info->st_ino=1;info->st_mode=S_IFDIR|0700;return 0;
+ assert(!strcmp(path,"/")&&(fake.cwd||fake.create_mode));if(fault("root_stat"))return -1;info->st_dev=fault("same_root")?10:500+fake.index;info->st_ino=1;info->st_mode=S_IFDIR|0700;return 0;
 }
-static int bs_lstat(const char *path,struct stat *info){(void)info;assert(fake.cwd&&strcmp(path,"/proc"));if(fault("host_path_present"))return 0;errno=ENOENT;return -1;}
+static int bs_lstat(const char *path,struct stat *info){(void)info;assert(fake.cwd&&(strcmp(path,"/proc")||fake.shared_pid));if(!strcmp(path,"/proc")&&fault("proc_present"))return 0;if(fault("host_path_present"))return 0;errno=ENOENT;return -1;}
 static int bs_statfs(const char *path,struct statfs *info){
  assert(fake.cwd&&fake.readonly);memset(info,0,sizeof(*info));info->f_flags=ST_RDONLY;
  if(!strcmp(path,"/")){if(fault("rootfs_type"))return -1;info->f_type=fault("bad_rootfs_type")?0:TMPFS_MAGIC;if(fault("root_writable"))info->f_flags=0;}
@@ -109,6 +109,23 @@ int main(int argc,char **argv){
  bad=ctx;bad.children[1].root_dev=ctx.children[0].root_dev;assert(pd_boot_results_valid(&bad)==EXDEV);
  bad=ctx;bad.children[1].fds_closed=0;assert(pd_boot_results_valid(&bad)==EPROTO);
  bad=ctx;bad.children[1].proc_pid_count=2;assert(pd_boot_results_valid(&bad)==EPROTO);
+ ctx.rootfs_only=1;
+ for(int n=0;n<2;n++){
+  memset(&fake,0,sizeof(fake));fake.index=n;fake.shared_pid=1;pd_boot_worker(&ctx,n,&ctx.children[n]);ctx.received[n]=1;
+  assert(!ctx.children[n].error&&ctx.children[n].pid>1&&!ctx.children[n].pid_ino&&!fake.proc&&!fake.entry&&fake.closed==2);
+ }
+ assert(pd_boot_results_valid(&ctx)==0);
+ const char *rf_failures[]={"root_writable","chroot","close_range","proc_present","host_path_present"};
+ for(unsigned n=0;n<sizeof(rf_failures)/sizeof(rf_failures[0]);n++){
+  memset(&fake,0,sizeof(fake));fake.shared_pid=1;fake.fail=rf_failures[n];struct pd_boot_child r;pd_boot_worker(&ctx,0,&r);assert(r.error&&!fake.proc);
+ }
+ bad=ctx;bad.children[0].proc_read_only=1;assert(pd_boot_results_valid(&bad)==EPROTO);
+ bad=ctx;bad.children[0].pid=1;assert(pd_boot_results_valid(&bad)==EPROTO);
+ bad=ctx;bad.children[0].pid_ino=100;assert(pd_boot_results_valid(&bad)==EPROTO);
+ memset(&fake,0,sizeof(fake));fake.create_mode=1;ctx.rootfs_only=0;
+ assert(pd_boot_create(&ctx)==ENOENT&&!strcmp(ctx.setup_stage,"parent_pid_namespace")&&!fake.tmp);
+ memset(&fake,0,sizeof(fake));fake.create_mode=1;fake.shared_pid=1;fake.fail="root_stat";ctx.rootfs_only=1;
+ assert(pd_boot_create(&ctx)==EACCES&&!strcmp(ctx.setup_stage,"parent_root"));
  return 0;
 }
 '''
@@ -119,4 +136,8 @@ int main(int argc,char **argv){
     assert r.returncode==31
     report=json.loads(r.stdout)
     assert report['component']=='bootstrap-self-test' and report['spawned']==0 and report['runtime_ready'] is False
+    r=subprocess.run([str(d/'test'),'--test-rootfs'],capture_output=True,text=True,timeout=5)
+    report=json.loads(r.stdout)
+    assert r.returncode==31 and report['component']=='rootfs-self-test'
+    assert report['pid_namespace_required'] is False and report['proc_required'] is False and report['spawned']==0
 print('PASS: PID1/private proc/read-only rootfs, FD closure ordering, host-path/PID rejection and partial failures (mock kernel)')

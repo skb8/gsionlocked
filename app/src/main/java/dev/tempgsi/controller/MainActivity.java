@@ -117,6 +117,15 @@ public final class MainActivity extends Activity {
                     return "Отчёт готов. Сохраните JSON. Android init и GSI не запускались.";
                 });
             }));
+            buttons.add(Ui.button(page,"Тест rootfs без proc",false,()->{
+                if(busy)return;
+                if(inside){status.setText("Проверяйте rootfs в OriginOS.");return;}
+                pd2425Report=null;
+                task("Проверка временного read-only rootfs без proc и PID namespace…",()->{
+                    pd2425Report=Pd2425Diagnostics.collectWithRootfsTest(this);
+                    return "Отчёт готов. Сохраните JSON. PID isolation и запуск GSI этим тестом не проверяются.";
+                });
+            }));
             buttons.add(Ui.button(page,"Сохранить root-отчёт",false,()->{
                 if(busy)return;
                 if(pd2425Report==null){status.setText("Сначала соберите Root-отчёт PD2425.");return;}

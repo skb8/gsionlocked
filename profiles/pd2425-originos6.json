@@ -340,10 +340,24 @@
   },
   "experimental_components": {
     "pid_proc_rootfs_scaffold": {
-      "state": "implemented-device-unvalidated",
+      "state": "owner-device-blocked-before-spawn",
       "probe_version": "0.1.8-pd2425-bootstrap-probe",
       "command": "--test-bootstrap",
       "scope": "two trusted inert PID1 children, private read-only proc/tmpfs rootfs; no GSI/Android init or untrusted sandbox",
+      "launch_authorization": false,
+      "source_sha256": "591fd4daa1fbd8bcd61b5488a26832e4ca845d456252aa65ba9cedf36038be0e",
+      "observed_errno": 2,
+      "observed_stage": "create",
+      "localized_operation": "stat /proc/self/ns/pid",
+      "spawned": 0,
+      "group_created": false,
+      "interpretation": "PID namespace entry absent; CONFIG_PID_NS disabled is a hypothesis, not a verified kernel config"
+    },
+    "rootfs_only_scaffold": {
+      "state": "implemented-device-unvalidated",
+      "probe_version": "0.1.9-pd2425-rootfs-probe",
+      "command": "--test-rootfs",
+      "scope": "trusted read-only tmpfs/chroot without proc; shared host PID namespace; no Android/GSI code",
       "launch_authorization": false
     }
   }
