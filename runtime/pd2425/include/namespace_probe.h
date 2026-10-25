@@ -5,12 +5,13 @@
 #include <stddef.h>
 #include <sys/mount.h>
 #include <sys/sysmacros.h>
+#include <linux/magic.h>
 #include <linux/android/binder.h>
 #include <linux/android/binderfs.h>
 
 static const char *const pd_binder_names[]={"binder","hwbinder","vndbinder"};
 struct pd_namespace_child {
-    int index,error,private_mounts,private_network,devices_created,protocol[3];
+    int index,error,private_mounts,private_network,devices_created,binderfs_verified,precreated[3],protocol[3];
     uint64_t mnt_dev,mnt_ino,net_dev,net_ino;unsigned majors[3],minors[3];char stage[48];
 };
 struct pd_namespace_context {
@@ -41,16 +42,35 @@ static void pd_namespace_worker(struct pd_namespace_context *ctx,int index,struc
     PD_NS_STEP("binderfs_mount",mount("binder",binder_dir,"binder",MS_NOSUID|MS_NOEXEC,"max=4"));
     snprintf(path,sizeof(path),"%s/binder-control",binder_dir);
     PD_NS_STEP("binder_control",control=open(path,O_RDONLY|O_CLOEXEC|O_NOFOLLOW));
+    struct stat control_info;struct statfs fs_info;
+    PD_NS_STEP("binderfs_type",fstatfs(control,&fs_info));
+    if((unsigned long)fs_info.f_type!=BINDERFS_SUPER_MAGIC){result->error=ENODEV;goto done;}
+    PD_NS_STEP("binder_control_stat",fstat(control,&control_info));
+    if(!S_ISCHR(control_info.st_mode)){result->error=ENODEV;goto done;}
+    result->binderfs_verified=1;
     for(int n=0;n<3;n++) {
         struct binderfs_device device={0};strcpy(device.name,pd_binder_names[n]);
-        PD_NS_STEP("binder_add",ioctl(control,BINDER_CTL_ADD,&device));
         snprintf(path,sizeof(path),"%s/%s",binder_dir,pd_binder_names[n]);struct stat info;
-        PD_NS_STEP("binder_node",stat(path,&info));
-        if(!S_ISCHR(info.st_mode)||info.st_rdev!=makedev(device.major,device.minor)){result->error=EPROTO;goto done;}
+        strcpy(result->stage,"binder_existing_node");
+        /* Android common kernels may populate binder_devices_param at mount.
+           Only accept nodes in this fresh verified BinderFS, never /dev nodes.
+           EEXIST from ADD is still an error: do not hide unexpected races. */
+        if(!lstat(path,&info))result->precreated[n]=1;
+        else {
+            if(errno!=ENOENT){result->error=errno;goto done;}
+            PD_NS_STEP("binder_add",ioctl(control,BINDER_CTL_ADD,&device));
+            PD_NS_STEP("binder_node",lstat(path,&info));
+            if(info.st_rdev!=makedev(device.major,device.minor)){result->error=EPROTO;goto done;}
+        }
+        if(!S_ISCHR(info.st_mode)||info.st_dev!=control_info.st_dev){result->error=EXDEV;goto done;}
+        device.major=(unsigned)major(info.st_rdev);device.minor=(unsigned)minor(info.st_rdev);
+        if(!device.major){result->error=EPROTO;goto done;}
         for(int k=0;k<3;k++)if(ctx->host_present[k]&&info.st_rdev==ctx->host_binders[k].st_rdev){result->error=EXDEV;goto done;}
         for(int k=0;k<n;k++)if(device.major==result->majors[k]&&device.minor==result->minors[k]){result->error=EADDRINUSE;goto done;}
         result->majors[n]=device.major;result->minors[n]=device.minor;
         PD_NS_STEP("binder_open",device_fd=open(path,O_RDWR|O_CLOEXEC|O_NOFOLLOW));
+        struct stat opened;PD_NS_STEP("binder_open_identity",fstat(device_fd,&opened));
+        if(!S_ISCHR(opened.st_mode)||!pd_same_inode(&opened,&info)||opened.st_rdev!=info.st_rdev){result->error=ESTALE;goto done;}
         struct binder_version version={0};PD_NS_STEP("binder_version",ioctl(device_fd,BINDER_VERSION,&version));
         close(device_fd);device_fd=-1;result->protocol[n]=version.protocol_version;
         if(version.protocol_version!=BINDER_CURRENT_PROTOCOL_VERSION){result->error=EPROTO;goto done;}
@@ -118,7 +138,7 @@ static int pd_namespace_results_valid(const struct pd_namespace_context *ctx) {
     for(int n=0;n<2;n++){
         const struct pd_namespace_child *r=&ctx->children[n];
         if(r->error)return r->error;
-        if(r->devices_created!=3||!r->private_mounts||!r->private_network||!r->mnt_ino||!r->net_ino)return EPROTO;
+        if(r->devices_created!=3||!r->binderfs_verified||!r->private_mounts||!r->private_network||!r->mnt_ino||!r->net_ino)return EPROTO;
         if((r->mnt_dev==(uint64_t)ctx->parent_mnt.st_dev&&r->mnt_ino==(uint64_t)ctx->parent_mnt.st_ino)||(r->net_dev==(uint64_t)ctx->parent_net.st_dev&&r->net_ino==(uint64_t)ctx->parent_net.st_ino))return EXDEV;
         for(int k=0;k<3;k++){
             if(r->protocol[k]!=BINDER_CURRENT_PROTOCOL_VERSION||!r->majors[k])return EPROTO;
@@ -145,8 +165,9 @@ static int pd_namespace_inspect(void *opaque,const pid_t *children) {
         if(result.index<0||result.index>1||ctx->received[result.index])return EPROTO;
         result.stage[sizeof(result.stage)-1]=0;ctx->children[result.index]=result;ctx->received[result.index]=1;
     }
-    int error=pd_namespace_results_valid(ctx);if(error)return error;
-    return pd_namespace_parent_check(ctx);
+    int error=pd_namespace_results_valid(ctx);
+    int parent_error=pd_namespace_parent_check(ctx); // Check preservation even when a child failed.
+    return parent_error?parent_error:error;
 }
 static int pd_namespace_remove(void *opaque) {
     struct pd_namespace_context *ctx=opaque;int error=pd_cg_remove(&ctx->group);
@@ -181,8 +202,8 @@ static int pd_namespace_selftest_json(int matched,const char *fingerprint) {
     for(int n=0;n<2;n++){
         if(n)putchar(',');
         const struct pd_namespace_child *r=&ctx.children[n];printf("{\"index\":%d,\"reported\":%s,\"errno\":%d,\"stage\":",n,ctx.received[n]?"true":"false",r->error);json_string(r->stage);
-        printf(",\"mount_namespace\":{\"device\":%llu,\"inode\":%llu},\"network_namespace\":{\"device\":%llu,\"inode\":%llu},\"private_mounts\":%s,\"private_network\":%s,\"devices_created\":%d,\"binder\":[",(unsigned long long)r->mnt_dev,(unsigned long long)r->mnt_ino,(unsigned long long)r->net_dev,(unsigned long long)r->net_ino,r->private_mounts?"true":"false",r->private_network?"true":"false",r->devices_created);
-        for(int k=0;k<3;k++){if(k)putchar(',');fputs("{\"name\":",stdout);json_string(pd_binder_names[k]);printf(",\"major\":%u,\"minor\":%u,\"protocol\":%d}",r->majors[k],r->minors[k],r->protocol[k]);}fputs("]}",stdout);
+        printf(",\"mount_namespace\":{\"device\":%llu,\"inode\":%llu},\"network_namespace\":{\"device\":%llu,\"inode\":%llu},\"private_mounts\":%s,\"private_network\":%s,\"devices_created\":%d,\"binderfs_verified\":%s,\"binder\":[",(unsigned long long)r->mnt_dev,(unsigned long long)r->mnt_ino,(unsigned long long)r->net_dev,(unsigned long long)r->net_ino,r->private_mounts?"true":"false",r->private_network?"true":"false",r->devices_created,r->binderfs_verified?"true":"false");
+        for(int k=0;k<3;k++){if(k)putchar(',');fputs("{\"name\":",stdout);json_string(pd_binder_names[k]);printf(",\"major\":%u,\"minor\":%u,\"protocol\":%d,\"allocation\":\"%s\"}",r->majors[k],r->minors[k],r->protocol[k],r->protocol[k]==BINDER_CURRENT_PROTOCOL_VERSION?(r->precreated[k]?"mount-created":"ioctl-created"):"unverified");}fputs("]}",stdout);
     }
     puts("],\"scope\":\"Root-only mount/network/BinderFS. No GSI, rootfs/PID/BPF/SELinux isolation or hardware handoff validated. No stock Binder transaction or service registration.\"}");return rc;
 }

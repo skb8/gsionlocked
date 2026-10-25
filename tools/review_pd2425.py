@@ -35,7 +35,7 @@ def namespace_test_ok(test,report):
     for child in children:
         if not isinstance(child,dict) or type(child.get('index')) is not int or child['index'] not in [0,1] or child['index'] in seen_indices:return False
         seen_indices.add(child['index'])
-        if child.get('reported') is not True or child.get('errno')!=0 or child.get('stage')!='complete' or child.get('private_mounts') is not True or child.get('private_network') is not True or child.get('devices_created')!=3:return False
+        if child.get('reported') is not True or child.get('errno')!=0 or child.get('stage')!='complete' or child.get('private_mounts') is not True or child.get('private_network') is not True or child.get('devices_created')!=3 or child.get('binderfs_verified') is not True:return False
         mnt,net=namespace(child.get('mount_namespace')),namespace(child.get('network_namespace'))
         if mnt is None or net is None or mnt==parent_mnt or net==parent_net or mnt in mounts or net in networks:return False
         mounts.add(mnt);networks.add(net)

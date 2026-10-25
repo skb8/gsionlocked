@@ -45,3 +45,16 @@ The owner's 0.1.5 report passed the cgroup test on 6.1.145 with KSU context and
 SELinux Enforcing. This validates own-child cleanup only. The new BinderFS test
 still needs a phone run. It does not validate PID/rootfs/BPF/SELinux isolation,
 service-manager startup, hardware handoff, watchdog recovery or full GSI boot.
+
+
+0.1.6 on-device result: mount/network namespaces and private BinderFS/control
+succeeded, but BINDER_CTL_ADD returned EEXIST for both children. No Binder
+protocol test or parent-preservation check completed; own-child cleanup passed.
+0.1.7 supports standard nodes populated at mount by Android common kernels.
+The control FD must have BINDERFS_SUPER_MAGIC; every node must be a non-symlink
+character device on the same filesystem, independent from all stock/peer nodes.
+Missing nodes use BINDER_CTL_ADD and returned IDs must match. Opened FD identity
+must match lstat before BINDER_VERSION. Unexpected EEXIST is still an error.
+JSON records binderfs_verified and allocation; devices_created counts validated
+nodes, whether mount-created or ioctl-created. Parent preservation is checked
+after both reports even on worker failure. No launch condition is bypassed.

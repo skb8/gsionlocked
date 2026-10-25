@@ -10,11 +10,15 @@ with tempfile.TemporaryDirectory() as temp:
 #define _GNU_SOURCE
 #include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/vfs.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sched.h>
 static int ns_stat(const char*,struct stat*);
+static int ns_lstat(const char*,struct stat*);
+static int ns_fstat(int,struct stat*);
+static int ns_fstatfs(int,struct statfs*);
 static int ns_unshare(int);
 static int ns_mount(const char*,const char*,const char*,unsigned long,const void*);
 static int ns_mkdir(const char*,mode_t);
@@ -22,6 +26,9 @@ static int ns_open(const char*,int,...);
 static int ns_ioctl(int,unsigned long,...);
 static int ns_close(int);
 #define stat(path,info) ns_stat(path,info)
+#define lstat(path,info) ns_lstat(path,info)
+#define fstat(fd,info) ns_fstat(fd,info)
+#define fstatfs(fd,info) ns_fstatfs(fd,info)
 #define unshare(flags) ns_unshare(flags)
 #define mount(a,b,c,d,e) ns_mount(a,b,c,d,e)
 #define mkdir(a,b) ns_mkdir(a,b)
@@ -32,6 +39,9 @@ static int ns_close(int);
 #include "preflight.c"
 #undef main
 #undef stat
+#undef lstat
+#undef fstat
+#undef fstatfs
 #undef unshare
 #undef mount
 #undef mkdir
@@ -41,7 +51,7 @@ static int ns_close(int);
 #include <assert.h>
 #include <stdarg.h>
 int __system_property_get(const char *key,char *value){(void)key;*value=0;return 0;}
-static struct {int fail,index,unshared,private_set,tmp,binder_dir,binder_mounted,allocated,opened,closed,current_device;int fds[4];} fake;
+static struct {int fail,index,unshared,private_set,tmp,binder_dir,binder_mounted,existing,allocated_mask,allocated,opened,closed,current_device;int fds[4];} fake;
 static int failure(int point){if(fake.fail==point){errno=EACCES;return 1;}return 0;}
 static int ns_unshare(int flags){assert(flags==(CLONE_NEWNS|CLONE_NEWNET));if(failure(1))return -1;fake.unshared=1;return 0;}
 static int ns_mount(const char *source,const char *target,const char *type,unsigned long flags,const void *data){
@@ -61,7 +71,26 @@ static int ns_stat(const char *path,struct stat *info){
  if(!strcmp(path,"/proc/self/ns/mnt")){assert(fake.private_set);info->st_dev=5;info->st_ino=fake.fail==13?10:101+fake.index;return 0;}
  if(!strcmp(path,"/proc/self/ns/net")){assert(fake.private_set);info->st_dev=5;info->st_ino=fake.fail==14?20:201+fake.index;return 0;}
  assert(fake.binder_mounted&&strstr(path,"/data/local/tmp/test_ns/")==path);if(failure(8))return -1;
- int n=node_number(path);info->st_mode=S_IFCHR|0600;info->st_rdev=makedev(node_major(),node_minor(n));return 0;
+ int n=node_number(path);info->st_dev=700+fake.index;info->st_ino=2000+n;info->st_mode=S_IFCHR|0600;info->st_rdev=makedev(node_major(),node_minor(n));return 0;
+}
+static int ns_lstat(const char *path,struct stat *info){
+ assert(fake.binder_mounted&&strstr(path,"/data/local/tmp/test_ns/")==path);
+ if(failure(20))return -1;
+ int n=node_number(path);
+ if(!((fake.existing|fake.allocated_mask)&(1<<n))){errno=ENOENT;return -1;}
+ int rc=ns_stat(path,info);
+ if(fake.fail==17)info->st_dev++;
+ if(fake.fail==18)info->st_mode=S_IFLNK|0777;
+ return rc;
+}
+static int ns_fstatfs(int fd,struct statfs *info){
+ assert(fd==100&&fake.fds[0]);if(failure(21))return -1;
+ memset(info,0,sizeof(*info));info->f_type=fake.fail==15?0:BINDERFS_SUPER_MAGIC;return 0;
+}
+static int ns_fstat(int fd,struct stat *info){
+ memset(info,0,sizeof(*info));info->st_dev=700+fake.index;info->st_mode=S_IFCHR|0600;
+ if(fd==100){assert(fake.fds[0]);if(fake.fail==16)info->st_mode=S_IFREG|0600;return 0;}
+ int n=fd-200;assert(n>=0&&n<3&&fake.fds[n+1]);info->st_ino=2000+n+(fake.fail==19?1:0);info->st_rdev=makedev(node_major(),node_minor(n));return 0;
 }
 static int ns_open(const char *path,int flags,...){
  if(!strcmp(path,"/proc/sys/kernel/random/boot_id")){errno=ENOENT;return -1;}
@@ -72,7 +101,7 @@ static int ns_open(const char *path,int flags,...){
 }
 static int ns_ioctl(int fd,unsigned long request,...){
  va_list args;va_start(args,request);void *ptr=va_arg(args,void*);va_end(args);
- if(request==BINDER_CTL_ADD){assert(fd==100&&fake.fds[0]);if(failure(7))return -1;struct binderfs_device *dev=ptr;int n=fake.allocated;assert(n<3&&!strcmp(dev->name,pd_binder_names[n]));dev->major=node_major();dev->minor=node_minor(n);fake.allocated++;return 0;}
+ if(request==BINDER_CTL_ADD){assert(fd==100&&fake.fds[0]);if(failure(7))return -1;struct binderfs_device *dev=ptr;int n=-1;for(int k=0;k<3;k++)if(!strcmp(dev->name,pd_binder_names[k]))n=k;assert(n>=0&&!(fake.existing&(1<<n)));if(fake.fail==22){errno=EEXIST;return -1;}fake.allocated_mask|=1<<n;dev->major=node_major();dev->minor=node_minor(n);fake.allocated++;return 0;}
  assert(request==BINDER_VERSION&&fd==200+fake.current_device);if(failure(10))return -1;
  ((struct binder_version*)ptr)->protocol_version=fake.fail==11?7:BINDER_CURRENT_PROTOCOL_VERSION;return 0;
 }
@@ -82,12 +111,18 @@ int main(int argc,char **argv){
  struct pd_namespace_context ctx={0};ctx.parent_mnt.st_dev=ctx.parent_net.st_dev=5;ctx.parent_mnt.st_ino=10;ctx.parent_net.st_ino=20;
  strcpy(ctx.targets[0],"/data/local/tmp/test_ns/one");strcpy(ctx.targets[1],"/data/local/tmp/test_ns/two");
  for(int n=0;n<3;n++){ctx.host_present[n]=1;ctx.host_binders[n].st_rdev=makedev(10,n);}
- for(int point=0;point<=14;point++){
-  memset(&fake,0,sizeof(fake));fake.fail=point;struct pd_namespace_child result;
+ for(int point=0;point<=22;point++){
+  memset(&fake,0,sizeof(fake));fake.fail=point;if(point==18)fake.existing=1;struct pd_namespace_child result;
   pd_namespace_worker(&ctx,0,&result);assert(fake.opened==fake.closed);
   if(!point)assert(!result.error&&result.devices_created==3&&!strcmp(result.stage,"complete")&&result.private_network&&result.private_mounts);
   else assert(result.error);
   if(point==1||point==2||point==13||point==14)assert(!fake.tmp&&!fake.binder_mounted&&!fake.opened);
+ }
+ for(int mask=0;mask<8;mask++){
+  memset(&fake,0,sizeof(fake));fake.existing=mask;struct pd_namespace_child result;
+  pd_namespace_worker(&ctx,0,&result);assert(!result.error&&result.devices_created==3&&result.binderfs_verified&&fake.opened==fake.closed);
+  for(int n=0;n<3;n++)assert(result.precreated[n]==!!(mask&(1<<n)));
+  assert(fake.allocated==3-__builtin_popcount((unsigned)mask));
  }
  for(int n=0;n<2;n++){memset(&fake,0,sizeof(fake));fake.index=n;pd_namespace_worker(&ctx,n,&ctx.children[n]);ctx.received[n]=1;}
  assert(pd_namespace_results_valid(&ctx)==0);
@@ -107,4 +142,4 @@ int main(int argc,char **argv){
     report=json.loads(refused.stdout)
     assert report['component']=='namespace-self-test' and report['runtime_ready'] is False
     assert report['passed'] is False and report['spawned']==0 and report['group_created'] is False
-print('PASS: namespace ordering, private-only Binder opens, protocol/alias rejection, fail-closed stages and FD cleanup (mock kernel)')
+print('PASS: namespace ordering, empty/prepopulated/mixed BinderFS, filesystem/inode checks, private-only opens, protocol/alias rejection, fail-closed stages and FD cleanup (mock kernel)')

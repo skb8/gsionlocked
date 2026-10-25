@@ -297,6 +297,22 @@
       "children_reaped": true,
       "temporary_group_removed": true,
       "scope": "own children only; not guest/hardware takeover"
+    },
+    "namespace_binderfs": {
+      "state": "owner-device-partial",
+      "source_sha256": "224337f398df97f889d6322b496c0eb9cbdc47179dbf7b6048e44876848d1975",
+      "private_mount_namespaces": true,
+      "private_network_namespaces": true,
+      "distinct_child_namespaces": true,
+      "tmpfs_mount": true,
+      "binderfs_mount": true,
+      "private_binder_control_open": true,
+      "binder_add_errno": 17,
+      "binder_protocol_tested": false,
+      "parent_preservation_checked": false,
+      "children_reaped": true,
+      "temporary_cleanup_complete": true,
+      "scope": "0.1.6 stops at duplicate Binder name; not complete isolation or launch validation"
     }
   }
 }

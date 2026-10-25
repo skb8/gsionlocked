@@ -40,10 +40,10 @@ print('PASS: exact fingerprint alias, 14 observed identities, primary GID drift,
 ns=copy.deepcopy(t);ns.update(component='namespace-self-test',parent_checked=True,parent_unchanged=True,temporary_directory_removed=True,parent_mount_namespace={'device':5,'inode':10},parent_network_namespace={'device':5,'inode':20},parent_binder=[{'name':'binder','present':True,'major':10,'minor':1}])
 ns['children']=[]
 for index in range(2):
-    ns['children'].append({'index':index,'reported':True,'errno':0,'stage':'complete','private_mounts':True,'private_network':True,'devices_created':3,'mount_namespace':{'device':5,'inode':100+index},'network_namespace':{'device':5,'inode':200+index},'binder':[{'name':name,'major':600,'minor':index*3+n,'protocol':8} for n,name in enumerate(['binder','hwbinder','vndbinder'])]})
+    ns['children'].append({'index':index,'reported':True,'errno':0,'stage':'complete','private_mounts':True,'private_network':True,'devices_created':3,'binderfs_verified':True,'mount_namespace':{'device':5,'inode':100+index},'network_namespace':{'device':5,'inode':200+index},'binder':[{'name':name,'major':600,'minor':index*3+n,'protocol':8} for n,name in enumerate(['binder','hwbinder','vndbinder'])]})
 r['self_tests']={'namespaces':ns}
 assert review(r,p)['namespace_test_passed'] and not review(r,p)['runtime_ready']
-for target,field,value in [('parent','parent_unchanged',False),('parent','cleanup_complete',False),('child','network_namespace',{'device':5,'inode':20}),('node','protocol',7),('node','minor',0)]:
+for target,field,value in [('parent','parent_unchanged',False),('parent','cleanup_complete',False),('child','binderfs_verified',False),('child','network_namespace',{'device':5,'inode':20}),('node','protocol',7),('node','minor',0)]:
     bad=copy.deepcopy(r);test=bad['self_tests']['namespaces']
     obj=test if target=='parent' else test['children'][1] if target=='child' else test['children'][1]['binder'][0]
     obj[field]=value
