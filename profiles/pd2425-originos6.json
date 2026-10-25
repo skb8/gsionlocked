@@ -7,10 +7,10 @@
   "host_sdk": 36,
   "firmware": "PD2425_A_16.1.17.10.W10.V000L1",
   "fingerprint": "vivo/PD2425/PD2425:16/BP2A.250605.031.A3/compiler260917174806:user/release-keys",
-  "state": "ota-analyzed-device-unvalidated",
+  "state": "device-foundation-validated-handoff-unvalidated",
   "launch_enabled": false,
   "runtime_bootstrap": "not-implemented",
-  "root": "user-provided GhostLock + KernelSU LKM; not exercised",
+  "root": "GhostLock + KernelSU LKM supplied by owner; UID 0 and KSU context observed with SELinux Enforcing; acquisition chain not independently tested",
   "ota": {
     "url": "https://sysupdxdl.vivo.com.cn/upgrade/oem/files/202609180149266c70592bcff78e4b2dc379b7a8aef287.zip",
     "bytes": 9575220448,
@@ -150,13 +150,13 @@
       "source": "vendor/etc/init/android.hardware.gatekeeper-service-spu-qti.rc"
     }
   ],
-  "services_evidence": "Offline declarations only; gatekeeper variants require live selection. Not instructions for service control.",
+  "services_evidence": "OTA declarations and owner-observed credentials; default gatekeeper selected in live reports. Not instructions for service control.",
   "blocked_on": [
     "display/input ownership and exact restore",
     "live watchdog owner/driver/timeout/restore contract",
     "effective SELinux policy and enforcing guest support",
     "complete GSI/APEX/shim/bootstrap dependencies",
-    "device validation of HAL/Binder/cgroup/network/root"
+    "isolated guest HAL/service-manager integration; PID/rootfs/BPF isolation and full lifecycle"
   ],
   "host_services": [
     {
@@ -299,20 +299,43 @@
       "scope": "own children only; not guest/hardware takeover"
     },
     "namespace_binderfs": {
-      "state": "owner-device-partial",
-      "source_sha256": "224337f398df97f889d6322b496c0eb9cbdc47179dbf7b6048e44876848d1975",
+      "state": "owner-device-passed",
+      "source_sha256": "62caf106c51972327a03f4dad9a70da3a1a48a92ef0d7c62f620aac52aefe951",
+      "probe_version": "0.1.7-pd2425-binder-fix",
+      "probe_source_commit": "1dcbf6dec5a991c88a4eda16813e76acb763bc4a",
       "private_mount_namespaces": true,
       "private_network_namespaces": true,
       "distinct_child_namespaces": true,
       "tmpfs_mount": true,
       "binderfs_mount": true,
-      "private_binder_control_open": true,
-      "binder_add_errno": 17,
-      "binder_protocol_tested": false,
-      "parent_preservation_checked": false,
+      "binderfs_type_verified": true,
+      "private_binder_devices": 6,
+      "binder_protocol": 8,
+      "allocation": "mount-created",
+      "stock_and_peer_device_ids_distinct": true,
+      "parent_preservation_checked": true,
+      "parent_unchanged": true,
+      "cgroup_kill": true,
+      "drained": true,
       "children_reaped": true,
       "temporary_cleanup_complete": true,
-      "scope": "0.1.6 stops at duplicate Binder name; not complete isolation or launch validation"
+      "scope": "trusted root-only mount/network/BinderFS probe; not guest, HAL/service-manager, PID/rootfs/BPF/SELinux isolation or hardware handoff",
+      "previous_attempt": {
+        "state": "owner-device-partial",
+        "source_sha256": "224337f398df97f889d6322b496c0eb9cbdc47179dbf7b6048e44876848d1975",
+        "private_mount_namespaces": true,
+        "private_network_namespaces": true,
+        "distinct_child_namespaces": true,
+        "tmpfs_mount": true,
+        "binderfs_mount": true,
+        "private_binder_control_open": true,
+        "binder_add_errno": 17,
+        "binder_protocol_tested": false,
+        "parent_preservation_checked": false,
+        "children_reaped": true,
+        "temporary_cleanup_complete": true,
+        "scope": "0.1.6 stops at duplicate Binder name; not complete isolation or launch validation"
+      }
     }
   }
 }

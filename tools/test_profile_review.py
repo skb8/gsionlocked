@@ -49,3 +49,11 @@ for target,field,value in [('parent','parent_unchanged',False),('parent','cleanu
     obj[field]=value
     assert not review(bad,p)['namespace_test_passed'] and 'namespace_test_not_passed' in codes(bad)
 print('PASS: namespace proof linkage, stock Binder exclusion, unique child devices, parent preservation and protocol checks')
+
+# A self-consistent nested test cannot override the outer exact host/root/Enforcing gates.
+for field,value in [('fingerprint','unknown/device/fingerprint'),('sdk','35'),('uid',2000),('selinux_enforce',{'errno':0,'value':'0'})]:
+    bad=copy.deepcopy(r);bad[field]=value
+    if field=='fingerprint':bad['self_tests']['namespaces']['fingerprint']=value
+    result=review(bad,p)
+    assert not result['namespace_test_passed'] and not result['cgroup_kill_child_test_passed'] and not result['runtime_ready']
+print('PASS: nested test cannot override host, API, root or Enforcing gates')

@@ -2,7 +2,7 @@
 import argparse,json,re
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-REMAINING=['physical display/touch handoff and exact restore','watchdog ownership/keepalive and recovery strategy','effective enforcing SELinux policy and guest compatibility','HAL/Binder/namespace/cgroup/network integration','complete GSI/APEX/shim bootstrap','bounded on-device session and cleanup fault injection']
+REMAINING=['physical display/touch handoff and exact restore','watchdog ownership/keepalive and recovery strategy','effective enforcing SELinux policy and guest compatibility','guest HAL/service-manager integration; PID/rootfs/BPF isolation','complete GSI/APEX/shim bootstrap','bounded on-device session and cleanup fault injection']
 def select_keys(devices,profile):
     names=profile['return_keys'];up=[];down=[]
     for d in devices:
@@ -70,7 +70,8 @@ def review(report,profile):
         if not isinstance(v,dict) or type(v.get('errno')) is not int or v['errno']!=0 or not isinstance(v.get('value'),str):
             issue('unreadable_'+field,'Missing or failed read');return None
         return v['value'].strip()
-    if value('selinux_enforce')!='1':issue('selinux_not_enforcing','Need original enforcing mode; do not disable SELinux')
+    enforcing=value('selinux_enforce')=='1'
+    if not enforcing:issue('selinux_not_enforcing','Need original enforcing mode; do not disable SELinux')
     temperature=value('battery_temp')
     if temperature is None or not re.fullmatch(r'-?[0-9]+',temperature) or not -200<=int(temperature)<=1000:issue('temperature_unknown','Battery temperature unavailable or invalid')
     elif int(temperature)>380:issue('temperature_high','Above existing 38 C start guard; no handoff authorized at any temperature')
@@ -130,9 +131,10 @@ def review(report,profile):
         item=watchdog.get(field,{})
         if not isinstance(item,dict) or item.get('errno')!=0 or not item.get('value'):missing.append(field)
     if missing:issue('watchdog_strategy_unresolved','watchdog0 metadata unavailable: '+', '.join(missing)+'; this does not prove no watchdog exists')
-    cgroup_pass=contained_test_ok(cgtest,'cgroup-self-test',report)
+    test_environment_ok=host_match and type(report.get('uid')) is int and report['uid']==0 and enforcing
+    cgroup_pass=test_environment_ok and contained_test_ok(cgtest,'cgroup-self-test',report)
     if cgtest is not None and not cgroup_pass:issue('cgroup_test_not_passed',str(cgtest.get('stage',cgtest.get('collection_error',cgtest.get('not_run','incomplete result')))) if isinstance(cgtest,dict) else 'invalid result')
-    namespace_pass=namespace_test_ok(nstest,report)
+    namespace_pass=test_environment_ok and namespace_test_ok(nstest,report)
     if nstest is not None and not namespace_pass:issue('namespace_test_not_passed',str(nstest.get('stage',nstest.get('collection_error',nstest.get('not_run','incomplete result')))) if isinstance(nstest,dict) else 'invalid result')
     return {'schema':2,'runtime_ready':False,'host_profile_match':host_match,'ota_fingerprint_exact_match':ota_exact,'observation_checks_passed':not issues,'issues':issues,'observed_process_credentials':observed,'return_keys':selected_keys,'cgroup_kill_child_test_passed':bool(cgroup_pass or namespace_pass),'namespace_test_passed':namespace_pass,'remaining_device_tests':REMAINING,'warning':'Observed identities and test results are not launch authorization. No service control is generated.'}
 def main():

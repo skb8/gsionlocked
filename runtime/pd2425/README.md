@@ -1,7 +1,7 @@
 # PD2425 diagnostic port
 
-OTA-analyzed; host identities and own-child cgroup.kill tested on PD2425. **Not a runnable GSI environment.**
-The preflight executables accept --check-host / --diagnose / --diagnose-json and an explicit --test-cgroup.
+OTA-analyzed; host identities, own-child cgroup.kill and root-only mount/network/BinderFS probe tested on PD2425. **Not a runnable GSI environment.**
+The preflight executables accept --check-host / --diagnose / --diagnose-json and explicit --test-cgroup / --test-isolation.
 For observation modes exit 0 means an exact allowlisted host identity, never readiness; exit 31 means mismatch;
 78 rejects unsupported operations. Reports always contain runtime_ready=0.
 Observation modes do not write. Observation modes never mount, control host services, change SELinux or open watchdog devices. The explicit cgroup test only creates/migrates/kills its own two children in a fresh group and removes it. The separate --test-isolation mode mounts tmpfs/BinderFS only inside those children's private mount namespaces.
@@ -42,8 +42,7 @@ there is no parent unmount, recursive removal, SELinux change or service control
 JSON reports partial stages and cleanup errors; a failed test is not readiness.
 
 The owner's 0.1.5 report passed the cgroup test on 6.1.145 with KSU context and
-SELinux Enforcing. This validates own-child cleanup only. The new BinderFS test
-still needs a phone run. It does not validate PID/rootfs/BPF/SELinux isolation,
+SELinux Enforcing. This validates own-child cleanup only. The 0.1.7 BinderFS test also passed on the owner's phone. It does not validate PID/rootfs/BPF/SELinux isolation,
 service-manager startup, hardware handoff, watchdog recovery or full GSI boot.
 
 
@@ -58,3 +57,13 @@ must match lstat before BINDER_VERSION. Unexpected EEXIST is still an error.
 JSON records binderfs_verified and allocation; devices_created counts validated
 nodes, whether mount-created or ioctl-created. Parent preservation is checked
 after both reports even on worker failure. No launch condition is bypassed.
+
+
+The owner's subsequent 0.1.7 report passed: six distinct mount-created private
+Binder nodes, protocol 8, two distinct mount/network namespaces, unchanged parent
+namespace/device/directory observations, cgroup.kill, drain, reap and cleanup.
+The profile stores only sanitized facts and the source report SHA-256, never
+PIDs, namespace inode numbers, boot IDs or the raw report. Repeating this probe
+is not required for this same setup. This is not a guest boot or a host handoff.
+The reviewer accepts a self-test proof only with the outer exact host, UID 0 and
+SELinux Enforcing observations as well as the complete nested result.
