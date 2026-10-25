@@ -35,7 +35,7 @@
   "observed_preview_passed": true,
   "apex_catalog": "profiles/pd2425-evox-apex.json",
   "service_loader_preview": {
-    "state": "implemented-device-unvalidated",
+    "state": "owner-device-loader-passed",
     "target": "/system/bin/servicemanager",
     "mode": "linker64 --list",
     "service_main_executed": false,

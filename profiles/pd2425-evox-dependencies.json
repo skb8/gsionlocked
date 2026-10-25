@@ -1,0 +1,168 @@
+{
+  "schema": 1,
+  "image_sha256": "2a0bd888510fe3415fbdcebb719c2a99d32801f09ad001333e429f6ebc7e9d3e",
+  "runtime_ready": false,
+  "scope": "Static candidate graph plus strong symbol name/version availability in the union only; ordered bootstrap/owner paths plus manifest exports; no dlopen, actual binding, symbol-version provider, namespace or HAL proof",
+  "targets": [
+    {
+      "target": "/apex/com.android.runtime/bin/linkerconfig",
+      "candidate_closure_complete": true,
+      "elf_count": 8,
+      "missing": [],
+      "multiple_selected_providers": {},
+      "requires_namespace_partitioning": false,
+      "strong_symbol_union_checked": 582,
+      "strong_symbol_union_missing": [],
+      "unversioned_fallback_candidates": [],
+      "strong_symbol_union_available": true,
+      "namespace_compatibility_verified": false,
+      "symbol_versions_verified": false,
+      "program_executed": false,
+      "nodes_sha256": "fe15c44330c0d238e7ba93dcad01ed9ced9a6ed9062d329ffc6083000f5674b9",
+      "edges_sha256": "8a2e8e9841b34b6496bba9875f03b2d8fe41c06b6a9e0bf0f9a6283698c57844",
+      "dependency_edges": 21
+    },
+    {
+      "target": "/system/bin/servicemanager",
+      "candidate_closure_complete": true,
+      "elf_count": 21,
+      "missing": [],
+      "multiple_selected_providers": {},
+      "requires_namespace_partitioning": false,
+      "strong_symbol_union_checked": 1641,
+      "strong_symbol_union_missing": [],
+      "unversioned_fallback_candidates": [],
+      "strong_symbol_union_available": true,
+      "namespace_compatibility_verified": false,
+      "symbol_versions_verified": false,
+      "program_executed": false,
+      "nodes_sha256": "6c46f224a01de6db257a859555498e6653f666ceb0704df607db39f8036ae34d",
+      "edges_sha256": "0095be201302a57ac90d91a9e5bb272632daccd5010da3d354460f3c0749b67d",
+      "dependency_edges": 95
+    },
+    {
+      "target": "/system/bin/hwservicemanager",
+      "candidate_closure_complete": true,
+      "elf_count": 22,
+      "missing": [],
+      "multiple_selected_providers": {},
+      "requires_namespace_partitioning": false,
+      "strong_symbol_union_checked": 1675,
+      "strong_symbol_union_missing": [],
+      "unversioned_fallback_candidates": [],
+      "strong_symbol_union_available": true,
+      "namespace_compatibility_verified": false,
+      "symbol_versions_verified": false,
+      "program_executed": false,
+      "nodes_sha256": "3c3b74aea0ed52ff06ce11b5cd7f40323285af708dd07edca5311cac78bbb3cf",
+      "edges_sha256": "fb3744201ddf8adeb5fc61396b0778368123487da5bd7d6ef5c9c787398a4d7a",
+      "dependency_edges": 102
+    },
+    {
+      "target": "/system/bin/app_process64",
+      "candidate_closure_complete": true,
+      "elf_count": 244,
+      "missing": [],
+      "multiple_selected_providers": {
+        "libbase.so": [
+          "/apex/com.android.art/lib64/libbase.so",
+          "/system/lib64/libbase.so"
+        ],
+        "libc++.so": [
+          "/apex/com.android.art/lib64/libc++.so",
+          "/system/lib64/libc++.so"
+        ],
+        "liblzma.so": [
+          "/apex/com.android.art/lib64/liblzma.so",
+          "/system/lib64/liblzma.so"
+        ],
+        "libunwindstack.so": [
+          "/apex/com.android.art/lib64/libunwindstack.so",
+          "/system/lib64/libunwindstack.so"
+        ]
+      },
+      "requires_namespace_partitioning": true,
+      "strong_symbol_union_checked": 29186,
+      "strong_symbol_union_missing": [],
+      "unversioned_fallback_candidates": [
+        {
+          "from": "/apex/com.android.art/lib64/libunwindstack.so",
+          "symbol": "inflate@ZLIB_NDK",
+          "unversioned_candidates": [
+            "/system/lib64/libz.so"
+          ]
+        },
+        {
+          "from": "/apex/com.android.art/lib64/libunwindstack.so",
+          "symbol": "inflateEnd@ZLIB_NDK",
+          "unversioned_candidates": [
+            "/system/lib64/libz.so"
+          ]
+        },
+        {
+          "from": "/apex/com.android.art/lib64/libunwindstack.so",
+          "symbol": "inflateInit_@ZLIB_NDK",
+          "unversioned_candidates": [
+            "/system/lib64/libz.so"
+          ]
+        },
+        {
+          "from": "/system/lib64/libmediadrm.so",
+          "symbol": "mediametrics_create@LIBMEDIAMETRICS_1",
+          "unversioned_candidates": [
+            "/system/lib64/libmediametrics.so"
+          ]
+        },
+        {
+          "from": "/system/lib64/libmediadrm.so",
+          "symbol": "mediametrics_delete@LIBMEDIAMETRICS_1",
+          "unversioned_candidates": [
+            "/system/lib64/libmediametrics.so"
+          ]
+        },
+        {
+          "from": "/system/lib64/libmediadrm.so",
+          "symbol": "mediametrics_selfRecord@LIBMEDIAMETRICS_1",
+          "unversioned_candidates": [
+            "/system/lib64/libmediametrics.so"
+          ]
+        },
+        {
+          "from": "/system/lib64/libmediadrm.so",
+          "symbol": "mediametrics_setCString@LIBMEDIAMETRICS_1",
+          "unversioned_candidates": [
+            "/system/lib64/libmediametrics.so"
+          ]
+        },
+        {
+          "from": "/system/lib64/libmediadrm.so",
+          "symbol": "mediametrics_setInt32@LIBMEDIAMETRICS_1",
+          "unversioned_candidates": [
+            "/system/lib64/libmediametrics.so"
+          ]
+        },
+        {
+          "from": "/system/lib64/libmediadrm.so",
+          "symbol": "mediametrics_setInt64@LIBMEDIAMETRICS_1",
+          "unversioned_candidates": [
+            "/system/lib64/libmediametrics.so"
+          ]
+        },
+        {
+          "from": "/system/lib64/libmediadrm.so",
+          "symbol": "mediametrics_setUid@LIBMEDIAMETRICS_1",
+          "unversioned_candidates": [
+            "/system/lib64/libmediametrics.so"
+          ]
+        }
+      ],
+      "strong_symbol_union_available": null,
+      "namespace_compatibility_verified": false,
+      "symbol_versions_verified": false,
+      "program_executed": false,
+      "nodes_sha256": "d46feb70d192661832f5985c79162e9d48d6c9f3d93d26641a71fd3b4a90c5d2",
+      "edges_sha256": "73d4bbeaca490b4d6dc76bb5fb329e57c58f4e27e5e77b63d2b31b97ae8a2dd2",
+      "dependency_edges": 2332
+    }
+  ]
+}

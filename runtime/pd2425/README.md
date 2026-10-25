@@ -146,3 +146,9 @@ APK 0.1.17 adds `--preview-service-loader IMAGE`: a private readonly bootstrap
 linkerconfig plus GSI linker64 `--list /system/bin/servicemanager`. This is a
 loader test, not a running service manager. Existing capless/default-deny guards
 and shell mode remain; native main/PID/Binder/HAL bootstrap stays gated.
+
+`tools/analyze_pd2425_dependencies.py` now follows transitive candidate ELF
+chains and audits strong symbol name/version availability. The compact source
+summary records the 8/21/22/244 ELF graphs, ART provider separation and pending
+unversioned fallback cases. Namespace/symbol binding, service main and HAL
+compatibility remain explicitly unverified.

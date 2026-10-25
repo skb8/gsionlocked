@@ -571,9 +571,52 @@
       "payload_manifest_verified": true
     },
     "service_loader_preview": {
-      "state": "implemented-device-unvalidated",
+      "state": "owner-device-loader-passed",
       "command": "--preview-service-loader IMAGE",
       "scope": "GSI linker --list servicemanager with immutable private bootstrap linkerconfig; no service main/Binder/HAL",
+      "full_launch_authorization": false,
+      "last_observation": {
+        "stage": "complete",
+        "child_stage": "exec",
+        "preview_passed": true,
+        "errno": 0,
+        "child_errno": 0,
+        "cleanup_errno": 0,
+        "exit_code": 0,
+        "signal": 0,
+        "guest_uid": 65534,
+        "guest_gid": 65534,
+        "capabilities_zero": true,
+        "no_new_privs": 1,
+        "filter_verified": 5,
+        "parent_unchanged": true,
+        "loops_released": true,
+        "temporary_directory_removed": true,
+        "service_main_executed": false,
+        "linkerconfig_readonly": true,
+        "target": "/system/bin/servicemanager",
+        "bootstrap_linkerconfig_sha256": "0fe872a8d1f08e0eeaefe3ec691b039d36414f43c521b100900126c99eb5b547",
+        "source_sha256": "3514157927c7f1481e2a9e28b6fed84207182927b7c8180b6b77a2fffcc8098a",
+        "probe_version": "0.1.17-pd2425-service-loader",
+        "independent_review_passed": true
+      }
+    },
+    "offline_dependency_analysis": {
+      "state": "executed-on-pinned-upstream-image",
+      "tool": "tools/analyze_pd2425_dependencies.py",
+      "summary": "profiles/pd2425-evox-dependencies.json",
+      "candidate_paths_complete": true,
+      "service_manager_elf_count": 21,
+      "service_manager_strong_symbols_available": true,
+      "app_process_elf_count": 244,
+      "app_process_unversioned_fallbacks_pending": 10,
+      "app_process_multi_provider_sonames": [
+        "libbase.so",
+        "libc++.so",
+        "liblzma.so",
+        "libunwindstack.so"
+      ],
+      "namespace_compatibility_verified": false,
       "full_launch_authorization": false
     }
   },
