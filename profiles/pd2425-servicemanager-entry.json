@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "source_bytes": 137200,
+  "source_sha256": "ef21886c18824a1121048c32b1d068499d013dee74f0026799955ad236c0ad3c",
+  "patched_sha256": "359a9ca045b4d3d775d28ebb0966ca9927fb4d4c5ec1dd5b2b1cb714a9aa1482",
+  "string_source": 6008,
+  "string_bytes": 8031,
+  "string_destination": 33688,
+  "helper": "/data/local/tmp/pd2425-sm-check.so",
+  "edits": [
+    {
+      "offset": 119520,
+      "old": 21,
+      "value": 1
+    },
+    {
+      "offset": 119528,
+      "old": 0,
+      "value": 8031
+    },
+    {
+      "offset": 119736,
+      "old": 6008,
+      "value": 33688
+    },
+    {
+      "offset": 119752,
+      "old": 8031,
+      "value": 8066
+    },
+    {
+      "offset": 208,
+      "old": 33688,
+      "value": 41754
+    },
+    {
+      "offset": 216,
+      "old": 33688,
+      "value": 41754
+    },
+    {
+      "offset": 135936,
+      "old": 6008,
+      "value": 33688
+    },
+    {
+      "offset": 135944,
+      "old": 6008,
+      "value": 33688
+    },
+    {
+      "offset": 135952,
+      "old": 8031,
+      "value": 8066
+    }
+  ],
+  "instructions_unchanged": true,
+  "interpreter_unchanged": true,
+  "policy_changes": false,
+  "state": "implemented-device-unvalidated",
+  "interpreter": "/system/bin/bootstrap/linker64",
+  "interpreter_sha256": "74e2ef9234b02dabedce58bc368266c59b64444bd0f944f26f8b831eaed317cd",
+  "entry_method": "native execve with requested exec SELinux context; kernel enforces transition under no_new_privs/nosuid",
+  "loader_metadata_change": "optional DT_DEBUG replaced by DT_NEEDED; dynstr moved into verified zero padding in existing readonly LOAD",
+  "full_android_boot": false
+}

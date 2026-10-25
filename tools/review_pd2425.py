@@ -118,8 +118,8 @@ def service_smoke_ok(test,report):
     if not service_loader_ok(common,report):return False
     if test.get('component')!='service-smoke-preview' or test.get('service_main_executed') is not True:return False
     if any(type(test.get(k)) is not int or test[k]!=v for k,v in [('guest_uid',1000),('guest_gid',1000),('exit_code',-1),('signal',9),('ping_errno',0)]):return False
-    if not all(test.get(k) is True for k in ['binder_private','selinux_view_verified','self_proc_only','packaged_helper_verified','service_domain_verified','process_identity_verified','context_manager_ping_passed','owned_stop','host_enforcing_preserved']):return False
-    return (test.get('service_filesystem_stage')=='complete' and test.get('bootstrap_linkerconfig_sha256')==pin['service_smoke_preview']['bootstrap_linkerconfig_sha256'] and isinstance(test.get('packaged_helper_sha256'),str) and re.fullmatch(r'[0-9a-f]{64}',test['packaged_helper_sha256']) is not None and isinstance(test.get('output'),str) and 'PD2425_SM_ENV_OK\n' in test['output'])
+    if not all(test.get(k) is True for k in ['binder_private','selinux_view_verified','self_proc_only','packaged_helper_verified','service_domain_verified','process_identity_verified','context_manager_ping_passed','owned_stop','host_enforcing_preserved','entry_adapted','exec_context_requested']):return False
+    return (test.get('service_entry_sha256')==pin['service_smoke_preview']['entry_sha256'] and test.get('service_filesystem_stage')=='complete' and test.get('bootstrap_linkerconfig_sha256')==pin['service_smoke_preview']['bootstrap_linkerconfig_sha256'] and isinstance(test.get('packaged_helper_sha256'),str) and re.fullmatch(r'[0-9a-f]{64}',test['packaged_helper_sha256']) is not None and isinstance(test.get('output'),str) and 'PD2425_SM_ENV_OK\n' in test['output'])
 def review(report,profile):
     issues=[];observed=[]
     def issue(code,detail):issues.append({'code':code,'detail':detail})

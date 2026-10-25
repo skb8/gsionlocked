@@ -46,13 +46,16 @@
   "service_smoke_preview": {
     "state": "implemented-device-unvalidated",
     "target": "/system/bin/servicemanager",
-    "mode": "bounded private Binder context manager",
+    "mode": "native ELF exec; bounded private Binder context manager",
     "guest_uid": 1000,
     "guest_gid": 1000,
     "selinux_domain": "u:r:servicemanager:s0",
-    "bootstrap_linkerconfig_sha256": "598807852b91a637b78452a7991032f04aa206cd3bf34ef4bd3c82a6537bc6a9",
+    "bootstrap_linkerconfig_sha256": "d1bd65129dbc99d599fedc0152ffee2708ce5b2f50c123dd4113997637730b51",
     "requires_enforcing_raw_decision": true,
     "host_services_changed": false,
-    "full_android_boot": false
+    "full_android_boot": false,
+    "entry_metadata": "profiles/pd2425-servicemanager-entry.json",
+    "entry_sha256": "359a9ca045b4d3d775d28ebb0966ca9927fb4d4c5ec1dd5b2b1cb714a9aa1482",
+    "service_context": "u:object_r:service_manager_service:s0"
   }
 }

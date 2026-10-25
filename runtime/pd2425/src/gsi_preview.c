@@ -16,6 +16,7 @@
 #include "preview_policy.h"
 #include "preview_linkerconfig.h"
 #include "service_fs.h"
+#include "service_exec_diag.h"
 #include "service_client.h"
 #include "service_policy.h"
 #ifndef PD_SM_CHECK_SHA
@@ -24,10 +25,10 @@
 #endif
 static int pv_helper_fd=-1;
 static int pv_service_mode;
-struct pv_record {struct sm_environment sm;int linkerconfig_readonly,prepared,error,stage,uid,gid,caps_zero,nnp,filter_verified,namespaces_private,loop_count,loops[2],loop_control_errno,loop_node_errno,loop_candidates,loop_preferred,loop_probe_number,loop_operation,loop_actual_major,loop_actual_minor,loop_expected_major,loop_expected_minor;};
+struct pv_record {struct sm_exec_observation exec;struct sm_environment sm;int linkerconfig_readonly,prepared,error,stage,uid,gid,caps_zero,nnp,filter_verified,namespaces_private,loop_count,loops[2],loop_control_errno,loop_node_errno,loop_candidates,loop_preferred,loop_probe_number,loop_operation,loop_actual_major,loop_actual_minor,loop_expected_major,loop_expected_minor;};
 struct pv_result {int ping_passed,identity_verified,owned_stop,host_enforcing, ping_errno;int error,cleanup_error,spawned,reaped,exit_code,signal,metadata_received,parent_unchanged,loops_released,temp_removed;const char *stage;char digest[65],output[8193];struct pv_record child;};
 static const char *pv_stages[]={"none","parent_death","private_namespaces","image_loop","image_mount","runtime_apex","runtime_loop","runtime_mount","elf_validation","chroot","drop_privileges","close_fds","seccomp","exec","bootstrap_linkerconfig","service_filesystems","service_domain"};
-_Static_assert(sizeof(struct pv_record)<=512,"atomic service setup record");
+_Static_assert(sizeof(struct pv_record)<=PIPE_BUF,"atomic service setup record");
 static int pv_inside(int root,const char *path,int flags){struct open_how how={.flags=(uint64_t)(flags|O_CLOEXEC),.resolve=RESOLVE_IN_ROOT|RESOLVE_NO_MAGICLINKS};return (int)syscall(SYS_openat2,root,path,&how,sizeof(how));}
 /* GET_FREE may return a kernel loop whose /dev node ueventd has not created.
    Android may also omit loop-control entirely. Existing block nodes are safe
@@ -126,7 +127,7 @@ static int pv_exec_guest(void){
     /* Force the mksh builtin: external printf would require forbidden fork. */
     char *args[]={"/apex/com.android.runtime/bin/linker64","/system/bin/sh","-c","builtin echo PD2425_GSI_SHELL_OK",NULL};
     char *env[]={"PATH=/system/bin","HOME=/","ANDROID_ROOT=/system","ANDROID_RUNTIME_ROOT=/apex/com.android.runtime","LD_LIBRARY_PATH=/apex/com.android.runtime/lib64/bionic:/system/lib64",NULL};
-    if(pv_service_mode==2){char *run[]={args[0],"/system/bin/servicemanager",NULL};char *service_env[]={env[0],env[1],env[2],env[3],env[4],"LD_PRELOAD=/data/local/tmp/pd2425-sm-check.so",NULL};return execve(run[0],run,service_env);}
+    if(pv_service_mode==2){char owner[64];snprintf(owner,sizeof(owner),"PD2425_OWNER_PID=%ld",(long)getppid());char *run[]={"/system/bin/servicemanager",NULL};char *service_env[]={env[0],env[1],env[2],env[3],owner,NULL};return execve(run[0],run,service_env);}
     if(pv_service_mode==1){char *list[]={args[0],"--list","/system/bin/servicemanager",NULL};return execve(list[0],list,env);}
     return execve(args[0],args,env);
 }
@@ -148,17 +149,18 @@ static void pv_worker(int image,int metadata,int output,int owner_fd,const char 
     struct open_how dirhow={.flags=O_RDONLY|O_DIRECTORY|O_CLOEXEC,.resolve=RESOLVE_IN_ROOT|RESOLVE_NO_SYMLINKS};
     int apexdir=(int)syscall(SYS_openat2,root,"apex",&dirhow,sizeof(dirhow));PV_STEP(7,apexdir);
     snprintf(path,sizeof(path),"/proc/self/fd/%d",apexdir);PV_STEP(7,mount("tmpfs",path,"tmpfs",MS_NOSUID|MS_NODEV,"size=1m,mode=0755"));close(apexdir);
-    int writable_apex=pv_inside(root,"apex",O_RDONLY|O_DIRECTORY);PV_STEP(7,writable_apex);PV_STEP(7,mkdirat(writable_apex,"com.android.runtime",0755));
+    int writable_apex=pv_inside(root,"apex",O_RDONLY|O_DIRECTORY);PV_STEP(7,writable_apex);if(pv_service_mode==2){const char label[]="u:object_r:apex_mnt_dir:s0";PV_STEP(7,fsetxattr(writable_apex,"security.selinux",label,sizeof(label),0));}PV_STEP(7,mkdirat(writable_apex,"com.android.runtime",0755));
     char mountpoint[256],source[64];snprintf(mountpoint,sizeof(mountpoint),"/proc/self/fd/%d/com.android.runtime",writable_apex);snprintf(source,sizeof(source),"/proc/self/fd/%d",loop[1]);
     PV_STEP(7,mount(source,mountpoint,"ext4",MS_RDONLY|MS_NOSUID|MS_NODEV,"noload"));close(writable_apex);
-    if(pv_service_mode){if(pv_service_mode==2){PV_STEP(15,sm_prepare_fs(root,pv_helper_fd,PD_SM_CHECK_BYTES,PD_SM_CHECK_SHA,&r.sm,&context_fd));PV_STEP(14,pv_create_linkerconfig_body(root,pv_smoke_config,sizeof(pv_smoke_config)-1));}else PV_STEP(14,pv_create_linkerconfig(root));r.linkerconfig_readonly=1;}
-    int linker=-1,shell=-1;PV_STEP(8,linker=pv_inside(root,"apex/com.android.runtime/bin/linker64",O_RDONLY));PV_CHECK(8,pv_elf64(linker));
+    if(pv_service_mode){if(pv_service_mode==2){PV_STEP(15,sm_prepare_fs(root,pv_helper_fd,PD_SM_CHECK_BYTES,PD_SM_CHECK_SHA,&r.sm,&context_fd));PV_STEP(14,pv_create_linkerconfig_body(root,pv_smoke_config,sizeof(pv_smoke_config)-1,1));}else PV_STEP(14,pv_create_linkerconfig(root));r.linkerconfig_readonly=1;}
+    int linker=-1,shell=-1;PV_STEP(8,linker=pv_inside(root,pv_service_mode==2?"system/bin/bootstrap/linker64":"apex/com.android.runtime/bin/linker64",O_RDONLY));PV_CHECK(8,pv_elf64(linker));
     unsigned char capability[64];errno=0;ssize_t capsize=fgetxattr(linker,"security.capability",capability,sizeof(capability));if(capsize>=0||(errno!=ENODATA&&errno!=ENOTSUP)){r.error=EACCES;goto failed;}
     PV_STEP(8,shell=pv_inside(root,pv_service_mode?"system/bin/servicemanager":"system/bin/sh",O_RDONLY));PV_CHECK(8,pv_elf64(shell));
     if(pv_service_mode==2){struct stat info;PV_STEP(8,fstat(shell,&info));r.sm.service_dev=info.st_dev;r.sm.service_ino=info.st_ino;PV_STEP(8,fstat(linker,&info));r.sm.linker_dev=info.st_dev;r.sm.linker_ino=info.st_ino;}
+    if(pv_service_mode==2)sm_capture_exec(shell,linker,&r.exec);
     close(linker);close(shell);
-    /* The root and runtime are immutable mounts. No host /proc, /sys, /dev or
-       data is bound. The image's empty mountpoints remain empty/read-only. */
+    /* Root/runtime remain immutable. Smoke adds private tmpfs, own proc attrs
+       and a real readonly SELinux view with two query-only RW aliases. */
     PV_STEP(9,fchdir(root));PV_STEP(9,chroot("."));PV_STEP(9,chdir("/"));
     PV_STEP(10,pv_limit(RLIMIT_CORE,0));PV_STEP(10,pv_limit(RLIMIT_CPU,5));/* Android Scudo reserves several GiB of VA without committing that RAM.
        A tiny AS limit breaks libc before main. Fork is denied by seccomp;
@@ -174,7 +176,7 @@ static void pv_worker(int image,int metadata,int output,int owner_fd,const char 
         /* Preserve owned loop/FS evidence even if the domain cannot use the setup pipe. */
         ssize_t interim=write(metadata,&r,sizeof(r));if(interim!=(ssize_t)sizeof(r))_exit(42);
         ssize_t count=write(context_fd,domain,sizeof(domain)-1);if(count!=(ssize_t)sizeof(domain)-1){r.error=count<0?errno:EPROTO;goto failed;}close(context_fd);context_fd=-1;
-        char current[128];PV_CHECK(16,read_text("/proc/self/attr/current",current,sizeof(current)));current[strcspn(current,"\n")]=0;
+        char current[128];PV_CHECK(16,read_text("/proc/self/attr/exec",current,sizeof(current)));current[strcspn(current,"\n")]=0;
         if(strcmp(current,domain)||!pv_zero_caps()){r.error=EPERM;goto failed;}r.sm.context_verified=1;
         PV_STEP(16,prctl(PR_SET_PDEATHSIG,SIGKILL));if(pd_wait_pidfd(owner_fd,0)!=ETIMEDOUT){r.error=ECHILD;goto failed;}
     }
@@ -237,7 +239,7 @@ done:
     r->parent_unchanged=pv_parent_same(&mnt,&net,&root);
     if(pv_service_mode==2){
         char enforcing[16];r->host_enforcing=!read_text("/sys/fs/selinux/enforce",enforcing,sizeof(enforcing))&&enforcing[0]=='1';
-        if(!r->error&&(!r->metadata_received||r->child.error||!r->child.prepared||!r->child.linkerconfig_readonly||!r->child.sm.binder_verified||!r->child.sm.selinux_verified||!r->child.sm.context_verified||!r->child.sm.self_proc_only||!r->child.sm.helper_verified||!r->identity_verified||!r->ping_passed||!r->owned_stop||!r->reaped||r->signal!=SIGKILL||!r->host_enforcing||!strstr(r->output,"PD2425_SM_ENV_OK\n")))r->error=r->child.error?r->child.error:EPROTO;
+        if(!r->error&&(!r->metadata_received||r->child.error||!r->child.prepared||!r->child.linkerconfig_readonly||!r->child.sm.binder_verified||!r->child.sm.selinux_verified||!r->child.sm.context_verified||!r->child.sm.entry_verified||!r->child.sm.self_proc_only||!r->child.sm.helper_verified||!r->identity_verified||!r->ping_passed||!r->owned_stop||!r->reaped||r->signal!=SIGKILL||!r->host_enforcing||!strstr(r->output,"PD2425_SM_ENV_OK\n")))r->error=r->child.error?r->child.error:EPROTO;
         for(int n=0;n<3;n++)if(r->child.sm.host_present[n]){char path[32];struct stat node;snprintf(path,sizeof(path),"/dev/%s",pd_binder_names[n]);if(stat(path,&node)||(uint64_t)node.st_dev!=r->child.sm.host_dev[n]||(uint64_t)node.st_ino!=r->child.sm.host_ino[n]||(uint64_t)node.st_rdev!=r->child.sm.host_rdev[n])r->cleanup_error=EXDEV;}
     }else if(!r->error&&(!r->metadata_received||r->child.error||!r->child.prepared||r->exit_code||r->signal||!(pv_service_mode?(r->child.linkerconfig_readonly&&strstr(r->output,"libbinder.so")&&strstr(r->output,"libc.so")):(strstr(r->output,"PD2425_GSI_SHELL_OK\n")!=NULL))))r->error=r->child.error?r->child.error:EPROTO;
     if(!r->parent_unchanged||!r->loops_released||!r->temp_removed)r->cleanup_error=r->cleanup_error?r->cleanup_error:EPROTO;
@@ -275,7 +277,10 @@ report:
     printf(",\"service_main_executed\":%s,\"linkerconfig_readonly\":%s,\"target\":",pv_service_mode==2?(r.ping_passed?"true":"null"):"false",r.child.linkerconfig_readonly?"true":"false");json_string(pv_service_mode?"/system/bin/servicemanager":"/system/bin/sh");
     char config_hash[65];struct pv_sha config_sha;pv_sha_init(&config_sha);pv_sha_update(&config_sha,pv_service_mode==2?pv_smoke_config:pv_bootstrap_config,pv_service_mode==2?sizeof(pv_smoke_config)-1:sizeof(pv_bootstrap_config)-1);pv_sha_final(&config_sha,config_hash);
     fputs(",\"bootstrap_linkerconfig_sha256\":",stdout);json_string(pv_service_mode?config_hash:"");
-    printf(",\"binder_private\":%s,\"selinux_view_verified\":%s,\"self_proc_only\":%s,\"packaged_helper_verified\":%s,\"service_domain_verified\":%s,\"process_identity_verified\":%s,\"context_manager_ping_passed\":%s,\"owned_stop\":%s,\"host_enforcing_preserved\":%s,\"ping_errno\":%d",r.child.sm.binder_verified?"true":"false",r.child.sm.selinux_verified?"true":"false",r.child.sm.self_proc_only?"true":"false",r.child.sm.helper_verified?"true":"false",r.child.sm.context_verified?"true":"false",r.identity_verified?"true":"false",r.ping_passed?"true":"false",r.owned_stop?"true":"false",r.host_enforcing?"true":"false",r.ping_errno);
+    printf(",\"binder_private\":%s,\"selinux_view_verified\":%s,\"self_proc_only\":%s,\"packaged_helper_verified\":%s,\"service_domain_verified\":%s,\"process_identity_verified\":%s,\"context_manager_ping_passed\":%s,\"owned_stop\":%s,\"host_enforcing_preserved\":%s,\"ping_errno\":%d",r.child.sm.binder_verified?"true":"false",r.child.sm.selinux_verified?"true":"false",r.child.sm.self_proc_only?"true":"false",r.child.sm.helper_verified?"true":"false",(pv_service_mode==2?r.identity_verified:r.child.sm.context_verified)?"true":"false",r.identity_verified?"true":"false",r.ping_passed?"true":"false",r.owned_stop?"true":"false",r.host_enforcing?"true":"false",r.ping_errno);
+    printf(",\"entry_adapted\":%s,\"exec_context_requested\":%s",r.child.sm.entry_verified?"true":"false",r.child.sm.context_verified?"true":"false");
+    fputs(",\"service_entry_sha256\":",stdout);json_string(pv_service_mode==2?SM_ENTRY_PATCHED_SHA:"");
+    sm_json_exec(&r.child.exec);
     int fs_stage=r.child.sm.stage>=0&&r.child.sm.stage<(int)(sizeof(sm_fs_stages)/sizeof(sm_fs_stages[0]))?r.child.sm.stage:0;
     fputs(",\"service_filesystem_stage\":",stdout);json_string(sm_fs_stages[fs_stage]);
     fputs(",\"packaged_helper_sha256\":",stdout);json_string(pv_service_mode==2?PD_SM_CHECK_SHA:"");

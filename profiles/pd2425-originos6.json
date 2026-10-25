@@ -618,6 +618,34 @@
       ],
       "namespace_compatibility_verified": false,
       "full_launch_authorization": false
+    },
+    "service_smoke_preview": {
+      "state": "environment-passed-exec-denied",
+      "last_observation": {
+        "stage": "guest_execution",
+        "child_stage": "exec",
+        "errno": 13,
+        "child_errno": 13,
+        "cleanup_errno": 0,
+        "guest_uid": 1000,
+        "guest_gid": 1000,
+        "capabilities_zero": true,
+        "no_new_privs": 1,
+        "filter_verified": 5,
+        "binder_private": true,
+        "selinux_view_verified": true,
+        "self_proc_only": true,
+        "packaged_helper_verified": true,
+        "service_domain_verified": true,
+        "parent_unchanged": true,
+        "loops_released": true,
+        "temporary_directory_removed": true,
+        "host_enforcing_preserved": true,
+        "probe_version": "0.1.18-pd2425-service-smoke",
+        "source_sha256": "721ecc692c77b4f0ae2ef2d075083f1c88e316653f85ba1ccc5d3519369edf0d"
+      },
+      "next_implementation": "0.1.19 native ELF entry with DT_NEEDED guard and kernel exec-context transition; device-unvalidated",
+      "full_launch_authorization": false
     }
   },
   "live_namespace_entries": {

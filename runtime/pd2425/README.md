@@ -167,3 +167,20 @@ The raw SELinux transaction follows Linux security/selinux/selinuxfs.c; Android
 libselinux does not export security_compute_av_flags_raw. All new mount labels,
 dyntransition and running-service behavior require the next device report.
 See the Russian guide for the button, success fields and diagnostic stages.
+
+
+0.1.19 replaces direct linker execution after dyntransition with native service
+ELF exec and a requested exec context. The kernel still enforces NNP/nosuid and
+its actual domain transition. A pinned private service copy adds a mandatory
+DT_NEEDED constructor; code/PT_INTERP stay byte-identical, DT_DEBUG is replaced
+and dynstr relocated into verified R-only padding. This retains real SELinux
+checks even with AT_SECURE (no LD_PRELOAD/LD_LIBRARY_PATH reliance). No policy
+rule is added and the source image stays untouched. Bootstrap bionic is used.
+The helper restores only its own parent-death SIGKILL, verifies owner PID and
+uses the actual GSI manager context service_manager_service. Actual service and
+bootstrap ELF identities, Binder ping, hash pins and cleanup remain mandatory.
+The report now includes read-only exec-policy evidence; it never authorizes a
+transition based on query output. Requires device validation. See
+profiles/pd2425-servicemanager-entry.json and tools/test_service_entry.py; the
+optional local test argument accepts the exact image-extracted ELF and compares
+native C output, Python output, checked-in metadata and readelf interpretation.

@@ -13,9 +13,11 @@ source=r'''
 #include <unistd.h>
 #include <sys/mount.h>
 #include <sys/statvfs.h>
+#include <sys/xattr.h>
 #include <sys/syscall.h>
 #include <linux/openat2.h>
-static int failure,opens,mounts,files,closed[20],interrupted;
+static int failure,opens,mounts,files,closed[20],interrupted,labels;
+static int labeling(int fd,const char *name,const void *label,size_t bytes,int flags){assert(!strcmp(name,"security.selinux")&&!flags);const char *expected=fd==11?"u:object_r:system_file:s0":"u:object_r:system_linker_config_file:s0";assert((fd==11||fd==12)&&bytes==strlen(expected)+1&&!strcmp(label,expected));labels++;if(failure==8){errno=EACCES;return -1;}return 0;}
 static size_t bytes;
 static long call(long number,...){
  assert(number==SYS_openat2);va_list a;va_start(a,number);int root=va_arg(a,int);const char *name=va_arg(a,const char*);struct open_how *h=va_arg(a,struct open_how*);va_end(a);
@@ -40,6 +42,7 @@ static ssize_t writing(int fd,const void *data,size_t size){
 }
 static int status(int dir,struct statvfs *fs){assert(dir==11);memset(fs,0,sizeof(*fs));fs->f_flag=failure==6?0:ST_RDONLY;return 0;}
 static int closing(int fd){assert(fd>=10&&fd<=13);assert(!closed[fd]++);return 0;}
+#define fsetxattr labeling
 #define syscall call
 #define mount mounting
 #define openat opening
@@ -62,6 +65,10 @@ int main(void){
   if(opens>1)assert(closed[11]);
   if(files>0&&test!=3)assert(closed[12]);
   if(test==7)assert(closed[13]);
+ }
+ for(int test=0;test<=1;test++){
+  failure=test?8:0;opens=mounts=files=interrupted=labels=0;bytes=0;memset(closed,0,sizeof(closed));
+  int result=pv_create_linkerconfig_body(4,pv_smoke_config,sizeof(pv_smoke_config)-1,1);assert(test?result==-1:result==0);assert(labels==(test?1:2));assert(closed[10]&&closed[11]);
  }
  return 0;
 }

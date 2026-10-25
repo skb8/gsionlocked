@@ -17,14 +17,15 @@ static int sm_check_process(pid_t pid,const struct sm_environment *expected){
     context[strcspn(context,"\n")]=0;if(strcmp(context,"u:r:servicemanager:s0"))return EPERM;
     snprintf(path,sizeof(path),"/proc/%d/exe",pid);int fd=open(path,O_RDONLY|O_CLOEXEC);if(fd<0)return errno;
     struct stat exe;if(fstat(fd,&exe)){error=errno;close(fd);return error;}close(fd);
-    if((uint64_t)exe.st_dev!=expected->linker_dev||(uint64_t)exe.st_ino!=expected->linker_ino)return ESTALE;
+    if((uint64_t)exe.st_dev!=expected->service_dev||(uint64_t)exe.st_ino!=expected->service_ino)return ESTALE;
     snprintf(path,sizeof(path),"/proc/%d/maps",pid);FILE *maps=fopen(path,"re");if(!maps)return errno;
-    char line[1024];int found=0;
+    char line[1024];int found=0,linker_found=0;
     for(int n=0;n<4096&&fgets(line,sizeof(line),maps);n++){
         unsigned major_id,minor_id;unsigned long long inode;
-        if(sscanf(line,"%*s %*s %*s %x:%x %llu",&major_id,&minor_id,&inode)==3&&inode==expected->service_ino&&(uint64_t)makedev(major_id,minor_id)==expected->service_dev){found=1;break;}
+        if(sscanf(line,"%*s %*s %*s %x:%x %llu",&major_id,&minor_id,&inode)==3&&inode==expected->service_ino&&(uint64_t)makedev(major_id,minor_id)==expected->service_dev){found=1;}
+        if(sscanf(line,"%*s %*s %*s %x:%x %llu",&major_id,&minor_id,&inode)==3&&inode==expected->linker_ino&&(uint64_t)makedev(major_id,minor_id)==expected->linker_dev)linker_found=1;
     }
-    fclose(maps);return found?0:ENOEXEC;
+    fclose(maps);return found&&linker_found?0:ENOEXEC;
 }
 static int sm_parse_ping(const unsigned char *bytes,size_t count,const void *mapping,size_t mapping_size){
     size_t offset=0;

@@ -41,8 +41,8 @@ static int test_open(const char*,int,...),test_fstat(int,struct stat*),test_ioct
 #include <stdarg.h>
 int __system_property_get(const char*k,char*v){(void)k;*v=0;return 0;}
 static int test_execve(const char *file,char *const args[],char *const env[]){
+ if(pv_service_mode==2){assert(!strcmp(file,"/system/bin/servicemanager")&&!strcmp(args[0],file)&&!args[1]);assert(!strncmp(env[4],"PD2425_OWNER_PID=",17)&&!env[5]);errno=ENOEXEC;return -1;}
  assert(!strcmp(file,"/apex/com.android.runtime/bin/linker64")&&!strcmp(args[0],file));
- if(pv_service_mode==2){assert(!strcmp(args[1],"/system/bin/servicemanager")&&!args[2]);assert(!strcmp(env[5],"LD_PRELOAD=/data/local/tmp/pd2425-sm-check.so")&&!env[6]);errno=ENOEXEC;return -1;}
  if(pv_service_mode==1){assert(!strcmp(args[1],"--list")&&!strcmp(args[2],"/system/bin/servicemanager")&&!args[3]);errno=ENOEXEC;return -1;}
  assert(!strcmp(args[1],"/system/bin/sh")&&!strcmp(args[2],"-c")&&!strcmp(args[3],"builtin echo PD2425_GSI_SHELL_OK")&&!args[4]);
  assert(!strcmp(env[0],"PATH=/system/bin")&&!strcmp(env[1],"HOME=/")&&!strcmp(env[2],"ANDROID_ROOT=/system")&&!strcmp(env[3],"ANDROID_RUNTIME_ROOT=/apex/com.android.runtime"));

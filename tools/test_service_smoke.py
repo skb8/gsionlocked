@@ -37,6 +37,8 @@ int main(void){
  memset(args,0,sizeof(args));args[1]=F_SETFL;args[2]=O_RDWR|O_NONBLOCK;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_fcntl,args)==SECCOMP_RET_ALLOW);args[2]|=O_ASYNC;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_fcntl,args)==deny);
  args[1]=F_SETOWN;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_fcntl,args)==deny);
  memset(args,0,sizeof(args));args[0]=PR_GET_NO_NEW_PRIVS;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_prctl,args)==SECCOMP_RET_ALLOW);args[0]=PR_SET_NAME;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_prctl,args)==deny);
+ memset(args,0,sizeof(args));args[0]=PR_SET_PDEATHSIG;args[1]=SIGKILL;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_prctl,args)==SECCOMP_RET_ALLOW);
+ args[1]=0;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_prctl,args)==deny);args[1]=SIGTERM;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_prctl,args)==deny);
  unsigned char reply[4+sizeof(struct binder_transaction_data)]={0};uint32_t command=BR_REPLY;struct binder_transaction_data data={0};memcpy(reply,&command,4);memcpy(reply+4,&data,sizeof(data));
  unsigned char mapping[32]={0};assert(sm_parse_ping(reply,sizeof(reply),mapping,sizeof(mapping))==1);
  assert(sm_parse_ping(reply,sizeof(reply)-1,mapping,sizeof(mapping))==-EPROTO);
@@ -47,6 +49,7 @@ int main(void){
   if(prctl(PR_SET_NO_NEW_PRIVS,1,0,0,0)||sm_install_policy()||pv_test_filter())_exit(50);
   errno=0;if(syscall(SYS_ioctl,-1L,BINDER_VERSION,NULL)!=-1||errno!=EBADF)_exit(51);
   errno=0;if(syscall(SYS_ioctl,-1L,BINDER_CTL_ADD,NULL)!=-1||errno!=EPERM)_exit(52);
+  if(prctl(PR_SET_PDEATHSIG,SIGKILL,0,0,0))_exit(55);
   if(prctl(PR_GET_NO_NEW_PRIVS,0,0,0,0)!=1||prctl(PR_GET_SECCOMP,0,0,0,0)!=2)_exit(53);
   int fd=(int)syscall(SYS_eventfd2,0,O_CLOEXEC|O_NONBLOCK);if(fd<0)_exit(54);close(fd);_exit(0);
  }

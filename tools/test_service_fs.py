@@ -16,17 +16,17 @@ source=r'''
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/vfs.h>
-static int failure,opened,mounted,closed[12];
-static int opening(int dir,const char *name,int flags,...){assert(dir==88&&!strcmp(name,"context")&&flags==(O_PATH|O_CLOEXEC|O_NOFOLLOW));opened++;if(failure==6&&opened==2){errno=ENOENT;return -1;}return opened==1?10:11;}
+static int failure,opened,mounted,closed[12],entry;
+static int opening(int dir,const char *name,int flags,...){assert(dir==88&&!strcmp(name,entry?"servicemanager":"context")&&flags==(O_PATH|O_CLOEXEC|O_NOFOLLOW));opened++;if(failure==6&&opened==2){errno=ENOENT;return -1;}return opened==1?10:11;}
 static int mounting(const char *from,const char *to,const char *type,unsigned long flags,const void *data){
  mounted++;assert(!type&&!data);
  if(mounted==1){assert(!strcmp(from,"/proc/self/fd/99")&&!strcmp(to,"/proc/self/fd/10")&&flags==MS_BIND);if(failure==1){errno=EPERM;return -1;}}
- else {assert(mounted==2&&!from&&!strcmp(to,"/proc/self/fd/11")&&flags==(MS_BIND|MS_REMOUNT|MS_RDONLY|MS_NOSUID|MS_NODEV|MS_NOEXEC));if(failure==3){errno=EPERM;return -1;}}
+ else {assert(mounted==2&&!from&&!strcmp(to,"/proc/self/fd/11")&&flags==(MS_BIND|MS_REMOUNT|MS_RDONLY|MS_NOSUID|MS_NODEV|(entry?0:MS_NOEXEC)));if(failure==3){errno=EPERM;return -1;}}
  return 0;
 }
-static int test_stat(int fd,struct stat *out){assert(fd==99||fd==11);memset(out,0,sizeof(*out));out->st_mode=(failure==5&&fd==11?S_IFCHR:S_IFREG)|0600;out->st_dev=42;out->st_ino=failure==4&&fd==11?51:50;return 0;}
-static int type_info(int fd,struct statfs *out){assert(fd==11);memset(out,0,sizeof(*out));out->f_type=failure==2?0xEF53:0xf97cff8cU;return 0;}
-static int flag_info(int fd,struct statvfs *out){assert(fd==11);memset(out,0,sizeof(*out));out->f_flag=failure==8||(mounted==2&&failure!=7)?ST_RDONLY:0;return 0;}
+static int test_stat(int fd,struct stat *out){assert(fd==99||fd==11);memset(out,0,sizeof(*out));out->st_mode=(failure==5&&fd==11?S_IFCHR:S_IFREG)|(entry?0755:0600);if(entry&&failure==10)out->st_mode|=S_ISUID;if(entry&&failure==9)out->st_uid=1000;out->st_dev=42;out->st_ino=failure==4&&fd==11?51:50;return 0;}
+static int type_info(int fd,struct statfs *out){assert(fd==11);memset(out,0,sizeof(*out));out->f_type=failure==2?0xEF53:(entry?0x01021994:0xf97cff8cU);return 0;}
+static int flag_info(int fd,struct statvfs *out){assert(fd==11);memset(out,0,sizeof(*out));out->f_flag=failure==8||(mounted==2&&failure!=7)?ST_RDONLY:0;if(entry&&failure==8)out->f_flag|=ST_NOEXEC;return 0;}
 static int closing(int fd){assert(fd==10||fd==11);assert(!closed[fd]++);return 0;}
 #define openat(...) opening(__VA_ARGS__)
 #define mount(...) mounting(__VA_ARGS__)
@@ -48,6 +48,12 @@ int main(void){
   if(n==7)assert(errno==EPROTO);
  }
  failure=0;opened=mounted=0;memset(closed,0,sizeof(closed));assert(!sm_bind_file(99,88,"context",0,SM_SELINUX_MAGIC)&&mounted==1);
+ entry=1;
+ for(int n=0;n<=10;n++){
+  failure=n;opened=mounted=0;memset(closed,0,sizeof(closed));
+  int result=sm_bind_entry(99,88);assert(n?result==-1:result==0);assert(closed[10]);if(n!=1&&n!=6)assert(closed[11]);
+  if(n==7||n==8)assert(errno==EPROTO);
+ }
  return 0;
 }
 '''
