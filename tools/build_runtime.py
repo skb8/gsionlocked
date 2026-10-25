@@ -21,6 +21,7 @@ def main():
         jobs.append((name+'-dm1q',common+['-static','-I',str(inc)]+(['-DTEMPGSI_HAL_PROFILE151'] if name=='loader198' else [])+[str(src/(name+'.c'))]))
     for component in ['loader','guardian']:
         jobs.append((component+'-pd2425-preflight',common+['-static','-I',str(probe_include),'-I',str(ROOT/'runtime/pd2425/include'),'-DCOMPONENT="'+component+'"',str(ROOT/'runtime/pd2425/src/preflight.c')]))
+    jobs.append(('libpd2425_sm_check.so',common+['-shared','-fPIC',str(ROOT/'runtime/pd2425/src/service_check.c'),'-ldl']))
     jobs.append(('pd2425-gsi-preview',common+['-static','-I',str(probe_include),'-I',str(ROOT/'runtime/pd2425/include'),str(ROOT/'runtime/pd2425/src/gsi_preview.c')]))
     for name in ['artd_session','private_selinux_mount']:
         jobs.append((name.replace('_','-')+'.so',common+['-shared','-fPIC',str(src/(name+'.c')),'-ldl']))
@@ -33,6 +34,9 @@ def main():
     results=[]
     for name,command in jobs:
         output=out/name;output.unlink(missing_ok=True)
+        if name=='pd2425-gsi-preview' and (out/'libpd2425_sm_check.so').exists():
+            helper=out/'libpd2425_sm_check.so'
+            command=command+['-DPD_SM_CHECK_SHA="'+hashlib.sha256(helper.read_bytes()).hexdigest()+'"','-DPD_SM_CHECK_BYTES='+str(helper.stat().st_size)]
         r=subprocess.run(command+['-o',str(output)],capture_output=True,text=True,timeout=180)
         (build/(name+'.log')).write_text(r.stdout+r.stderr)
         item={'file':name,'built':r.returncode==0,'log':'build/runtime/'+name+'.log'}

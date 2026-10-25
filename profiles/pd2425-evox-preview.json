@@ -42,5 +42,17 @@
     "bootstrap_linkerconfig_sha256": "0fe872a8d1f08e0eeaefe3ec691b039d36414f43c521b100900126c99eb5b547",
     "requires_private_readonly_linkerconfig": true,
     "full_android_boot": false
+  },
+  "service_smoke_preview": {
+    "state": "implemented-device-unvalidated",
+    "target": "/system/bin/servicemanager",
+    "mode": "bounded private Binder context manager",
+    "guest_uid": 1000,
+    "guest_gid": 1000,
+    "selinux_domain": "u:r:servicemanager:s0",
+    "bootstrap_linkerconfig_sha256": "598807852b91a637b78452a7991032f04aa206cd3bf34ef4bd3c82a6537bc6a9",
+    "requires_enforcing_raw_decision": true,
+    "host_services_changed": false,
+    "full_android_boot": false
   }
 }

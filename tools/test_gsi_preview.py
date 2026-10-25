@@ -42,7 +42,8 @@ static int test_open(const char*,int,...),test_fstat(int,struct stat*),test_ioct
 int __system_property_get(const char*k,char*v){(void)k;*v=0;return 0;}
 static int test_execve(const char *file,char *const args[],char *const env[]){
  assert(!strcmp(file,"/apex/com.android.runtime/bin/linker64")&&!strcmp(args[0],file));
- if(pv_service_mode){assert(!strcmp(args[1],"--list")&&!strcmp(args[2],"/system/bin/servicemanager")&&!args[3]);errno=ENOEXEC;return -1;}
+ if(pv_service_mode==2){assert(!strcmp(args[1],"/system/bin/servicemanager")&&!args[2]);assert(!strcmp(env[5],"LD_PRELOAD=/data/local/tmp/pd2425-sm-check.so")&&!env[6]);errno=ENOEXEC;return -1;}
+ if(pv_service_mode==1){assert(!strcmp(args[1],"--list")&&!strcmp(args[2],"/system/bin/servicemanager")&&!args[3]);errno=ENOEXEC;return -1;}
  assert(!strcmp(args[1],"/system/bin/sh")&&!strcmp(args[2],"-c")&&!strcmp(args[3],"builtin echo PD2425_GSI_SHELL_OK")&&!args[4]);
  assert(!strcmp(env[0],"PATH=/system/bin")&&!strcmp(env[1],"HOME=/")&&!strcmp(env[2],"ANDROID_ROOT=/system")&&!strcmp(env[3],"ANDROID_RUNTIME_ROOT=/apex/com.android.runtime"));
  assert(!strcmp(env[4],"LD_LIBRARY_PATH=/apex/com.android.runtime/lib64/bionic:/system/lib64")&&!env[5]);
@@ -105,7 +106,7 @@ static uint32_t eval(unsigned arch,unsigned nr,uint64_t *args){
 int main(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--config-fixture")){fputs(pv_bootstrap_config,stdout);return 0;}
  if(argc>1)return preview_main(argc,argv);
- assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=1;assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=0;
+ assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=1;assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=2;assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=0;
  dev_t parsed;assert(!pv_loop_parse("7:56\n",&parsed)&&major(parsed)==7&&minor(parsed)==56);
  const char *bad[]={"8:56\n","7:-1","7:1048576","4294967303:56","7:4294967352","7:56junk"," 7:56","7:56\nextra","7:"};
  for(unsigned n=0;n<sizeof(bad)/sizeof(bad[0]);n++)assert(pv_loop_parse(bad[n],&parsed)==EPROTO);

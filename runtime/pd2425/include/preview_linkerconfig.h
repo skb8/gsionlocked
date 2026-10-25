@@ -11,7 +11,14 @@ static const char pv_bootstrap_config[] =
 "namespace.default.search.paths = /apex/com.android.runtime/lib64/bionic:/system/lib64:/system/system_ext/lib64:/apex/com.android.runtime/lib64\n"
 "namespace.default.permitted.paths = /apex/com.android.runtime/lib64:/apex/com.android.runtime/bin:/system/lib64:/system/system_ext/lib64\n";
 
-static int pv_create_linkerconfig(int root){
+static const char pv_smoke_config[] =
+"dir.bootstrap = /system/bin\n"
+"dir.bootstrap = /apex/com.android.runtime/bin\n"
+"[bootstrap]\n"
+"namespace.default.isolated = true\n"
+"namespace.default.search.paths = /apex/com.android.runtime/lib64/bionic:/system/lib64:/system/system_ext/lib64:/apex/com.android.runtime/lib64\n"
+"namespace.default.permitted.paths = /apex/com.android.runtime/lib64:/apex/com.android.runtime/bin:/system/lib64:/system/system_ext/lib64:/data/local/tmp\n";
+static int pv_create_linkerconfig_body(int root,const char *body,size_t bytes){
     struct open_how how={.flags=O_RDONLY|O_DIRECTORY|O_CLOEXEC,.resolve=RESOLVE_IN_ROOT|RESOLVE_NO_SYMLINKS};
     int dir=(int)syscall(SYS_openat2,root,"linkerconfig",&how,sizeof(how));if(dir<0)return -1;
     char target[64];snprintf(target,sizeof(target),"/proc/self/fd/%d",dir);
@@ -20,8 +27,8 @@ static int pv_create_linkerconfig(int root){
     close(dir);dir=(int)syscall(SYS_openat2,root,"linkerconfig",&how,sizeof(how));if(dir<0){error=errno;goto done;}
     file=openat(dir,"ld.config.txt",O_WRONLY|O_CREAT|O_EXCL|O_CLOEXEC|O_NOFOLLOW,0444);
     if(file<0){error=errno;goto done;}
-    for(size_t n=0;n<sizeof(pv_bootstrap_config)-1;){
-        ssize_t written=write(file,pv_bootstrap_config+n,sizeof(pv_bootstrap_config)-1-n);
+    for(size_t n=0;n<bytes;){
+        ssize_t written=write(file,body+n,bytes-n);
         if(written<0&&errno==EINTR)continue;
         if(written<=0){error=written<0?errno:EIO;goto done;}n+=(size_t)written;
     }
@@ -37,4 +44,5 @@ done:
     if(dir>=0)close(dir);
     if(error){errno=error;return -1;}return 0;
 }
+static int pv_create_linkerconfig(int root){return pv_create_linkerconfig_body(root,pv_bootstrap_config,sizeof(pv_bootstrap_config)-1);}
 #endif

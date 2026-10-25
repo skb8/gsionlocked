@@ -101,6 +101,15 @@ public final class MainActivity extends Activity {
                     return "Проверка библиотек завершена. Сохраните root-отчёт. Сам сервис не запускался.";
                 });
             }));
+            buttons.add(Ui.button(page,"Приватный servicemanager — короткий запуск",true,()->{
+                if(busy)return;
+                if(inside){status.setText("Запускайте тест сервиса из OriginOS.");return;}
+                pd2425Report=null;
+                task("Запуск одного сервиса с отдельным Binder и проверкой Enforcing; затем завершение своего процесса…",()->{
+                    pd2425Report=Pd2425Diagnostics.collectServiceSmoke(this,selectedSha);
+                    return "Тест сервиса завершён. Сохраните root-отчёт. Android framework и HAL не запускались.";
+                });
+            }));
             buttons.add(Ui.button(page,"Root-отчёт PD2425",false,()->{
                 if(busy)return;
                 if(inside){status.setText("Собирайте отчёт в OriginOS.");return;}

@@ -152,3 +152,18 @@ chains and audits strong symbol name/version availability. The compact source
 summary records the 8/21/22/244 ELF graphs, ART provider separation and pending
 unversioned fallback cases. Namespace/symbol binding, service main and HAL
 compatibility remain explicitly unverified.
+
+
+0.1.18 adds `--smoke-servicemanager IMAGE`, device-unvalidated. One owned
+capless UID/GID1000 process, actual servicemanager SELinux domain, private
+BinderFS and a genuine read-only selinuxfs view (access/context query endpoints
+only writable). A hash-pinned packaged preload sets libselinux's mount pointer,
+requires enabled+Enforcing, real getcon/check_access and raw kernel decision
+with no per-domain permissive flag. It does not hook permission APIs. The
+supervisor verifies the owned PID's credentials/executable/maps and private
+Binder inode before a bounded PING_TRANSACTION; it terminates/reaps only that
+owned PID and verifies cleanup. No fork/network/host service or HAL handoff.
+The raw SELinux transaction follows Linux security/selinux/selinuxfs.c; Android
+libselinux does not export security_compute_av_flags_raw. All new mount labels,
+dyntransition and running-service behavior require the next device report.
+See the Russian guide for the button, success fields and diagnostic stages.
