@@ -30,7 +30,15 @@ static const struct sm_kind *pv_kind(void){return pv_service_mode==3?&hw_service
 static const char *pv_config(void){return pv_service_mode==3?pv_hw_config:pv_service_mode>=2?pv_smoke_config:pv_bootstrap_config;}
 static size_t pv_config_bytes(void){return pv_service_mode==3?sizeof(pv_hw_config)-1:pv_service_mode>=2?sizeof(pv_smoke_config)-1:sizeof(pv_bootstrap_config)-1;}
 struct pv_record {struct sm_exec_observation exec;struct sm_environment sm;int linkerconfig_readonly,prepared,error,stage,uid,gid,caps_zero,nnp,filter_verified,namespaces_private,loop_count,loops[2],loop_control_errno,loop_node_errno,loop_candidates,loop_preferred,loop_probe_number,loop_operation,loop_actual_major,loop_actual_minor,loop_expected_major,loop_expected_minor;};
-struct pv_result {int thread_peak;int ping_passed,identity_verified,owned_stop,host_enforcing, ping_errno;int error,cleanup_error,spawned,reaped,exit_code,signal,metadata_received,parent_unchanged,loops_released,temp_removed;const char *stage;char digest[65],output[8193];struct pv_record child;};
+enum {PV_OUTPUT_HEAD=6144,PV_OUTPUT_TAIL=2048};
+struct pv_result {int identity_phase,identity_errno,identity_ever,ping_phase,ping_attempts,exit_observed,stop_requested,stop_errno,usage_available;uint64_t wall_ms,user_ms,system_ms,max_rss_kb,output_total;size_t head_used,tail_used;char output_tail[PV_OUTPUT_TAIL+1];int thread_peak;int ping_passed,identity_verified,owned_stop,host_enforcing, ping_errno;int error,cleanup_error,spawned,reaped,exit_code,signal,metadata_received,parent_unchanged,loops_released,temp_removed;const char *stage;char digest[65],output[8193];struct pv_record child;};
+static void pv_capture_output(struct pv_result *r,const char *bytes,size_t count){
+    r->output_total+=count;size_t head=count;if(head>PV_OUTPUT_HEAD-r->head_used)head=PV_OUTPUT_HEAD-r->head_used;
+    memcpy(r->output+r->head_used,bytes,head);r->head_used+=head;r->output[r->head_used]=0;
+    if(count>=PV_OUTPUT_TAIL){memcpy(r->output_tail,bytes+count-PV_OUTPUT_TAIL,PV_OUTPUT_TAIL);r->tail_used=PV_OUTPUT_TAIL;}
+    else{size_t drop=r->tail_used+count>PV_OUTPUT_TAIL?r->tail_used+count-PV_OUTPUT_TAIL:0;if(drop){memmove(r->output_tail,r->output_tail+drop,r->tail_used-drop);r->tail_used-=drop;}memcpy(r->output_tail+r->tail_used,bytes,count);r->tail_used+=count;}
+    r->output_tail[r->tail_used]=0;
+}
 static const char *pv_stages[]={"none","parent_death","private_namespaces","image_loop","image_mount","runtime_apex","runtime_loop","runtime_mount","elf_validation","chroot","drop_privileges","close_fds","seccomp","exec","bootstrap_linkerconfig","service_filesystems","service_domain"};
 _Static_assert(sizeof(struct pv_record)<=PIPE_BUF,"atomic service setup record");
 static int pv_inside(int root,const char *path,int flags){struct open_how how={.flags=(uint64_t)(flags|O_CLOEXEC),.resolve=RESOLVE_IN_ROOT|RESOLVE_NO_MAGICLINKS};return (int)syscall(SYS_openat2,root,path,&how,sizeof(how));}
@@ -203,7 +211,7 @@ failed:
 }
 static int pv_parent_same(const struct stat *mnt,const struct stat *net,const struct stat *root){struct stat now;return !stat("/proc/self/ns/mnt",&now)&&pd_same_inode(mnt,&now)&&!stat("/proc/self/ns/net",&now)&&pd_same_inode(net,&now)&&!stat("/",&now)&&pd_same_inode(root,&now);}
 static int pv_run(int image,struct pv_result *r){
-    char temp[]="/data/local/tmp/gsionlocked_preview_XXXXXX";int metadata[2]={-1,-1},output[2]={-1,-1},owner=-1,task=-1,changed_chld=0;struct sigaction old_chld,normal={.sa_handler=SIG_DFL};sigemptyset(&normal.sa_mask);pid_t child=-1;struct stat mnt,net,root;
+    char temp[]="/data/local/tmp/gsionlocked_preview_XXXXXX";int metadata[2]={-1,-1},output[2]={-1,-1},owner=-1,task=-1,changed_chld=0;struct sigaction old_chld,normal={.sa_handler=SIG_DFL};sigemptyset(&normal.sa_mask);pid_t child=-1;struct stat mnt,net,root;struct timespec start={0},now={0};int timer_started=0;
     r->stage="parent_snapshot";if(stat("/proc/self/ns/mnt",&mnt)||stat("/proc/self/ns/net",&net)||stat("/",&root)){r->error=errno;return 40;}
     r->stage="temporary_directory";if(!mkdtemp(temp)){r->error=errno;return 40;}
     if(sigaction(SIGCHLD,&normal,&old_chld)){r->error=errno;goto done;}changed_chld=1;
@@ -215,26 +223,27 @@ static int pv_run(int image,struct pv_result *r){
     if(!child){close(metadata[0]);close(output[0]);pv_worker(image,metadata[1],output[1],owner,temp,&mnt,&net);_exit(44);}
     r->spawned=1;close(metadata[1]);metadata[1]=-1;close(output[1]);output[1]=-1;
     task=(int)syscall(SYS_pidfd_open,child,0);if(task<0){r->error=errno;goto done;}
-    r->stage="guest_execution";size_t used=0;int exited=0;struct timespec start,now;if(clock_gettime(CLOCK_MONOTONIC,&start)){r->error=errno;goto done;}
+    r->stage="guest_execution";int exited=0;if(clock_gettime(CLOCK_MONOTONIC,&start)){r->error=errno;goto done;}timer_started=1;
     while(!exited){
         struct pollfd fds[]={{metadata[0],POLLIN,0},{output[0],POLLIN,0},{task,POLLIN,0}};int rc=poll(fds,3,100);if(rc<0&&errno!=EINTR){r->error=errno;break;}
-        if(fds[0].revents&POLLIN){ssize_t n=read(metadata[0],&r->child,sizeof(r->child));if(n!=(ssize_t)sizeof(r->child)){r->error=EPROTO;break;}r->metadata_received=1;}
-        if(fds[1].revents&POLLIN){char b[1024];ssize_t n=read(output[0],b,sizeof(b));if(n>0){size_t copy=(size_t)n;if(copy>sizeof(r->output)-1-used)copy=sizeof(r->output)-1-used;memcpy(r->output+used,b,copy);used+=copy;r->output[used]=0;}}
+        if(fds[0].revents&POLLIN){ssize_t n=read(metadata[0],&r->child,sizeof(r->child));if(n!=(ssize_t)sizeof(r->child)){r->stage="metadata_protocol";r->error=EPROTO;break;}r->metadata_received=1;}
+        if(fds[1].revents&POLLIN){char b[1024];ssize_t n=read(output[0],b,sizeof(b));if(n>0)pv_capture_output(r,b,(size_t)n);}
         if(pv_service_mode>=2&&r->metadata_received&&r->child.prepared&&!(fds[2].revents&POLLIN)){
-            int threads=0;int identity=sm_check_process(child,&r->child.sm,&threads,pv_kind());if(threads>r->thread_peak)r->thread_peak=threads;if(identity==E2BIG){r->error=E2BIG;break;}
-            if(!identity){r->ping_errno=sm_ping_process(child,&r->child.sm,pv_kind());if(!r->ping_errno){int after=sm_check_process(child,&r->child.sm,&threads,pv_kind());if(threads>r->thread_peak)r->thread_peak=threads;if(after==E2BIG){r->error=E2BIG;break;}if(!after){r->identity_verified=r->ping_passed=r->owned_stop=1;break;}}}
-            else r->ping_errno=identity;
+            int threads=0;int identity=sm_check_process(child,&r->child.sm,&threads,pv_kind(),&r->identity_phase);r->identity_errno=identity;r->identity_verified=!identity;if(!identity)r->identity_ever=1;if(threads>r->thread_peak)r->thread_peak=threads;if(identity==E2BIG){r->error=E2BIG;break;}
+            if(!identity){r->ping_attempts++;r->ping_errno=sm_ping_process(child,&r->child.sm,pv_kind(),&r->ping_phase);if(!r->ping_errno){int after=sm_check_process(child,&r->child.sm,&threads,pv_kind(),&r->identity_phase);r->identity_errno=after;r->identity_verified=!after;if(!after)r->identity_ever=1;if(threads>r->thread_peak)r->thread_peak=threads;if(after==E2BIG){r->error=E2BIG;break;}if(!after){r->identity_verified=r->ping_passed=r->owned_stop=1;break;}}}
+
         }
-        exited=fds[2].revents&POLLIN;clock_gettime(CLOCK_MONOTONIC,&now);if(now.tv_sec-start.tv_sec>=20){r->error=ETIMEDOUT;break;}
+        exited=fds[2].revents&POLLIN;if(exited){r->exit_observed=1;r->stage="guest_exit";}if(clock_gettime(CLOCK_MONOTONIC,&now)){r->stage="execution_clock";r->error=errno;break;}if(!exited&&now.tv_sec-start.tv_sec>=20){r->stage="execution_deadline";r->error=ETIMEDOUT;break;}
     }
     /* Drain output after exit, without waiting on any possible writer. */
-    for(int chunks=0;chunks<128;chunks++){char b[1024];ssize_t n=read(output[0],b,sizeof(b));if(n<=0)break;size_t copy=(size_t)n;if(copy>sizeof(r->output)-1-used)copy=sizeof(r->output)-1-used;memcpy(r->output+used,b,copy);used+=copy;r->output[used]=0;}
+    for(int chunks=0;chunks<128;chunks++){char b[1024];ssize_t n=read(output[0],b,sizeof(b));if(n<=0)break;pv_capture_output(r,b,(size_t)n);}
     for(int records=0;records<2;records++){ssize_t n=read(metadata[0],&r->child,sizeof(r->child));if(n==(ssize_t)sizeof(r->child))r->metadata_received=1;else break;}
 done:
+    if(timer_started&&!clock_gettime(CLOCK_MONOTONIC,&now)){int64_t elapsed=(int64_t)(now.tv_sec-start.tv_sec)*1000+(now.tv_nsec-start.tv_nsec)/1000000;r->wall_ms=elapsed>0?(uint64_t)elapsed:0;}
     /* Trusted setup creates one process. Smoke permits exact pthread clones
        in its TGID only; pidfd SIGKILL terminates that entire thread group.
        Never signal a process outside this unreaped owned PID. */
-    if(child>1){if(task>=0)syscall(SYS_pidfd_send_signal,task,SIGKILL,NULL,0);else kill(child,SIGKILL);int status=0;pid_t n=0;for(int t=0;t<100;t++){n=waitpid(child,&status,WNOHANG);if(n==child||(n<0&&errno!=EINTR))break;usleep(50000);}if(n==child){r->reaped=1;r->exit_code=WIFEXITED(status)?WEXITSTATUS(status):-1;r->signal=WIFSIGNALED(status)?WTERMSIG(status):0;}else r->cleanup_error=n==0?ETIMEDOUT:errno;}
+    if(child>1){if(!r->exit_observed){r->stop_requested=1;int stopped=task>=0?(int)syscall(SYS_pidfd_send_signal,task,SIGKILL,NULL,0):kill(child,SIGKILL);if(stopped)r->stop_errno=errno;}int status=0;struct rusage usage={0};pid_t n=0;for(int t=0;t<100;t++){n=wait4(child,&status,WNOHANG,&usage);if(n==child||(n<0&&errno!=EINTR))break;usleep(50000);}if(n==child){r->usage_available=1;r->user_ms=(uint64_t)usage.ru_utime.tv_sec*1000+usage.ru_utime.tv_usec/1000;r->system_ms=(uint64_t)usage.ru_stime.tv_sec*1000+usage.ru_stime.tv_usec/1000;r->max_rss_kb=usage.ru_maxrss>0?(uint64_t)usage.ru_maxrss:0;r->reaped=1;r->exit_code=WIFEXITED(status)?WEXITSTATUS(status):-1;r->signal=WIFSIGNALED(status)?WTERMSIG(status):0;}else r->cleanup_error=n==0?ETIMEDOUT:errno;}
     for(int n=0;n<2;n++){if(metadata[n]>=0)close(metadata[n]);if(output[n]>=0)close(output[n]);}if(task>=0)close(task);if(owner>=0)close(owner);
     r->loops_released=1;
     if(r->spawned&&!r->metadata_received)r->loops_released=0;
@@ -286,6 +295,10 @@ report:
     printf(",\"entry_adapted\":%s,\"exec_context_requested\":%s",r.child.sm.entry_verified?"true":"false",r.child.sm.context_verified?"true":"false");
     fputs(",\"service_entry_sha256\":",stdout);json_string(pv_service_mode>=2?(pv_service_mode==3?HW_ENTRY_PATCHED_SHA:SM_ENTRY_PATCHED_SHA):"");
     fputs(",\"ping_method\":",stdout);json_string(pv_service_mode==3?"HIDL IBase.ping":"Binder PING_TRANSACTION");
+    int identity_phase=r.identity_phase>=0&&r.identity_phase<7?r.identity_phase:0,ping_phase=r.ping_phase>=0&&r.ping_phase<7?r.ping_phase:0;
+    fputs(",\"identity_stage\":",stdout);json_string(sm_identity_phases[identity_phase]);fputs(",\"ping_stage\":",stdout);json_string(sm_ping_phases[ping_phase]);
+    printf(",\"identity_errno\":%d,\"identity_ever_verified\":%s,\"ping_attempts\":%d,\"exit_observed\":%s,\"supervisor_stop_requested\":%s,\"supervisor_stop_errno\":%d,\"execution_wall_ms\":%llu,\"wait_usage_available\":%s,\"guest_user_ms\":%llu,\"guest_system_ms\":%llu,\"guest_max_rss_kb\":%llu,\"cpu_limit_seconds\":5,\"cpu_limit_suspected\":%s,\"own_pid_alias\":%s",r.identity_errno,r.identity_ever?"true":"false",r.ping_attempts,r.exit_observed?"true":"false",r.stop_requested?"true":"false",r.stop_errno,(unsigned long long)r.wall_ms,r.usage_available?"true":"false",(unsigned long long)r.user_ms,(unsigned long long)r.system_ms,(unsigned long long)r.max_rss_kb,r.exit_observed&&r.signal==SIGKILL&&r.user_ms+r.system_ms>=4900?"true":"false",r.child.sm.own_pid_alias?"true":"false");
+    fputs(",\"output_tail\":",stdout);json_string(r.output_total>PV_OUTPUT_HEAD?r.output_tail:"");printf(",\"output_bytes\":%llu,\"output_truncated\":%s",(unsigned long long)r.output_total,r.output_total>PV_OUTPUT_HEAD?"true":"false");
     sm_json_exec(&r.child.exec);
     printf(",\"thread_limit\":%d,\"observed_thread_peak\":%d,\"pthread_clone_flags\":%u",pv_service_mode>=2?SM_MAX_THREADS:0,r.thread_peak,pv_service_mode>=2?(unsigned)SM_THREAD_FLAGS:0);
     fputs(",\"binder_driver\":",stdout);json_string(pv_service_mode>=2?pv_kind()->driver:"");fputs(",\"service_domain\":",stdout);json_string(pv_service_mode>=2?pv_kind()->domain:"");

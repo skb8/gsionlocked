@@ -126,7 +126,7 @@ def hwservice_smoke_ok(test,report):
     pin=json.loads((ROOT/'profiles/pd2425-evox-preview.json').read_text());sm=pin['service_smoke_preview'];hw=pin['hwservice_smoke_preview']
     common=dict(test,component='service-smoke-preview',target=sm['target'],output='PD2425_SM_ENV_OK\n',service_entry_sha256=sm['entry_sha256'],bootstrap_linkerconfig_sha256=sm['bootstrap_linkerconfig_sha256'])
     if not service_smoke_ok(common,report):return False
-    return (test.get('target')==hw['target'] and test.get('service_domain')==hw['selinux_domain'] and test.get('binder_driver')=='hwbinder' and test.get('ping_method')=='HIDL IBase.ping' and test.get('service_entry_sha256')==hw['entry_sha256'] and test.get('bootstrap_linkerconfig_sha256')==hw['bootstrap_linkerconfig_sha256'] and isinstance(test.get('output'),str) and 'PD2425_HW_ENV_OK\n' in test['output'])
+    return (test.get('own_pid_alias') is True and test.get('target')==hw['target'] and test.get('service_domain')==hw['selinux_domain'] and test.get('binder_driver')=='hwbinder' and test.get('ping_method')=='HIDL IBase.ping' and test.get('service_entry_sha256')==hw['entry_sha256'] and test.get('bootstrap_linkerconfig_sha256')==hw['bootstrap_linkerconfig_sha256'] and isinstance(test.get('output'),str) and 'PD2425_HW_ENV_OK\n' in test['output'])
 def review(report,profile):
     issues=[];observed=[]
     def issue(code,detail):issues.append({'code':code,'detail':detail})

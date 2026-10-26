@@ -63,7 +63,7 @@
     "clone3": "denied with ENOSYS; libc may fall back to checked clone"
   },
   "hwservice_smoke_preview": {
-    "state": "implemented-device-unvalidated",
+    "state": "device-guard-passed-hidl-unconfirmed",
     "target": "/system/system_ext/bin/hwservicemanager",
     "mode": "native ELF exec; bounded private Binder context manager",
     "guest_uid": 1000,
@@ -81,6 +81,8 @@
     "thread_limit_kind": "supervisor-observed, not a hard kernel thread quota",
     "clone3": "denied with ENOSYS; libc may fall back to checked clone",
     "binder_driver": "hwbinder",
-    "ping_method": "HIDL IBase.ping"
+    "ping_method": "HIDL IBase.ping",
+    "requires_own_pid_alias": true,
+    "requires_real_getpidcon": true
   }
 }

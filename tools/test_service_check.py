@@ -22,6 +22,8 @@ source=r'''
 #include <linux/magic.h>
 #include <dlfcn.h>
 #include "service_kind.h"
+struct sm_log_message;
+static void set_test_logger(void (*callback)(const struct sm_log_message*)){assert(callback);}
 static int failure,queried,located,opened,hardware;
 static const struct sm_kind *expected(void){return hardware?&hw_service_kind:&sm_service_kind;}static jmp_buf escape;static char message[512];
 static uid_t identity(void){return failure==1?1001:1000;}
@@ -30,14 +32,15 @@ static pid_t parent_id(void){return failure==16?4321:1234;}
 static int state(int option,...){if(option==PR_SET_PDEATHSIG){va_list a;va_start(a,option);assert(va_arg(a,int)==SIGKILL);va_end(a);return 0;}if(option==PR_GET_NO_NEW_PRIVS)return failure==2?0:1;assert(option==PR_GET_SECCOMP);return 2;}
 static int test_fs(const char *path,struct statfs *out){(void)path;memset(out,0,sizeof(*out));out->f_type=failure==3?0xEF53:0xf97cff8cU;return 0;}
 static int test_flags(const char *path,struct statvfs *out){memset(out,0,sizeof(*out));out->f_flag=failure==4&&!strcmp(path,"/sys/fs/selinux/load")?0:ST_RDONLY;return 0;}
-static void *library_fn(const char *name,int flag){assert(!strcmp(name,"libselinux.so")&&flag==(RTLD_NOW|RTLD_LOCAL));return (void*)1;}
+static void *library_fn(const char *name,int flag){if(!strcmp(name,"liblog.so")){assert(flag==(RTLD_NOW|RTLD_NOLOAD));return (void*)2;}assert(!strcmp(name,"libselinux.so")&&flag==(RTLD_NOW|RTLD_LOCAL));return (void*)1;}
 static void set_mount(const char *path){assert(!strcmp(path,"/sys/fs/selinux"));located=1;}
 static int enabled(void){return failure==10?0:1;}
 static int enforce(void){assert(located);return failure==5?0:1;}
 static int context(char **out){*out=failure==6?"u:r:ksu:s0":(char*)expected()->domain;return 0;}
+static int pid_context(pid_t pid,char **out){assert(pid==getpid());if(failure==18){*out=NULL;return -1;}return context(out);}
 static void release_context(char *c){assert(c&&!strcmp(c,expected()->domain));}
 static int decision(const char *from,const char *to,const char *class_name,const char *permission,void *aux){assert(!strcmp(from,expected()->domain)&&!strcmp(to,expected()->service_context)&&!strcmp(class_name,expected()->policy_class)&&!strcmp(permission,"add")&&!aux);queried=1;return failure==7?-1:0;}
-static void *symbol(void *lib,const char *name){assert(lib==(void*)1);if(!strcmp(name,"set_selinuxmnt"))return (void*)set_mount;if(!strcmp(name,"is_selinux_enabled"))return (void*)enabled;if(!strcmp(name,"security_getenforce"))return (void*)enforce;if(!strcmp(name,"getcon"))return (void*)context;if(!strcmp(name,"freecon"))return (void*)release_context;if(!strcmp(name,"selinux_check_access"))return (void*)decision;assert(0);return NULL;}
+static void *symbol(void *lib,const char *name){if(lib==(void*)2){assert(!strcmp(name,"__android_log_set_logger"));return (void*)set_test_logger;}assert(lib==(void*)1);if(!strcmp(name,"getpidcon"))return (void*)pid_context;if(!strcmp(name,"set_selinuxmnt"))return (void*)set_mount;if(!strcmp(name,"is_selinux_enabled"))return (void*)enabled;if(!strcmp(name,"security_getenforce"))return (void*)enforce;if(!strcmp(name,"getcon"))return (void*)context;if(!strcmp(name,"freecon"))return (void*)release_context;if(!strcmp(name,"selinux_check_access"))return (void*)decision;assert(0);return NULL;}
 static int opening(const char *path,int flag,...){
  char class_path[160];snprintf(class_path,sizeof(class_path),"/sys/fs/selinux/class/%s/index",expected()->policy_class);if(!strcmp(path,class_path))return 11;
  snprintf(class_path,sizeof(class_path),"/sys/fs/selinux/class/%s/perms/add",expected()->policy_class);if(!strcmp(path,class_path))return 12;
@@ -74,10 +77,10 @@ static _Noreturn void exiting(int code){assert(code==124);longjmp(escape,1);}
 #define __attribute__(value)
 #include "service_check.c"
 int main(void){
- for(hardware=0;hardware<2;hardware++)for(volatile int n=0;n<=17;n++){
+ for(hardware=0;hardware<2;hardware++)for(volatile int n=0;n<=18;n++){
   failure=n;queried=located=opened=0;message[0]=0;
   if(!setjmp(escape)){sm_check();assert(!n&&!strcmp(message,expected()->marker)&&queried&&opened);}
-  else {assert(n&&strstr(message,"PD2425_SM_ENV_FAIL"));if(n<5||n>=15)assert(!located);if(n<7||n==10)assert(!queried);if(n<8||n>=10)assert(!opened);}
+  else {assert(n&&strstr(message,"PD2425_SM_ENV_FAIL"));if(n<5||(n>=15&&n<=17))assert(!located);if(n<7||n==10)assert(!queried);if(n<8||n>=10)assert(!opened);}
  }
  return 0;
 }

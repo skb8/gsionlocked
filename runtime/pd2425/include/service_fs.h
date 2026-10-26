@@ -8,7 +8,7 @@
 #include "service_entry.h"
 #define SM_SELINUX_MAGIC 0xf97cff8cU
 static const char *sm_fs_stages[]={"none","stock_binder_metadata","private_dev","binderfs_mount","private_binder_nodes","selinux_source","selinux_view","own_proc_attr","packaged_helper","complete","service_entry"};
-struct sm_environment {int stage;int binder_verified,selinux_verified,self_proc_only,helper_verified,context_verified,entry_verified;uint64_t binder_dev,binder_ino,binder_rdev,service_dev,service_ino,linker_dev,linker_ino,host_dev[3],host_ino[3],host_rdev[3];int host_present[3];};
+struct sm_environment {int stage;int own_pid_alias;int binder_verified,selinux_verified,self_proc_only,helper_verified,context_verified,entry_verified;uint64_t binder_dev,binder_ino,binder_rdev,service_dev,service_ino,linker_dev,linker_ino,host_dev[3],host_ino[3],host_rdev[3];int host_present[3];};
 static int sm_directory(int root,const char *name){struct open_how h={.flags=O_RDONLY|O_DIRECTORY|O_CLOEXEC,.resolve=RESOLVE_IN_ROOT|RESOLVE_NO_SYMLINKS};return (int)syscall(SYS_openat2,root,name,&h,sizeof(h));}
 static void sm_fdpath(char *out,size_t size,int fd){snprintf(out,size,"/proc/self/fd/%d",fd);}
 static int sm_label_directory(int fd){const char label[]="u:object_r:system_file:s0";return fsetxattr(fd,"security.selinux",label,sizeof(label),0);}
@@ -30,6 +30,13 @@ static int sm_bind_file(int source,int parent,const char *name,int readonly,unsi
     close(target);if(error){errno=error;return -1;}return 0;
 }
 static int sm_make_path(int parent,const char *name,mode_t mode){if(mkdirat(parent,name,mode))return -1;int fd=openat(parent,name,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC);if(fd>=0&&sm_label_directory(fd)){int error=errno;close(fd);errno=error;return -1;}return fd;}
+static int sm_make_own_pid_alias(int proc){
+    pid_t pid=getpid();char name[32];int bytes=snprintf(name,sizeof(name),"%ld",(long)pid);
+    if(pid<=1||bytes<=0||bytes>=(int)sizeof(name)){errno=ERANGE;return -1;}
+    if(symlinkat("self",proc,name))return -1;
+    char path[96];snprintf(path,sizeof(path),"/proc/self/fd/%d/%s",proc,name);const char label[]="u:object_r:system_file:s0";
+    return lsetxattr(path,"security.selinux",label,sizeof(label),0);
+}
 static int sm_prepare_fs(int root,int helper,uint64_t helper_bytes,const char *helper_sha,struct sm_environment *result,int *context_fd,const struct sm_kind *kind){
     int dev=-1,bfs=-1,control=-1,fd=-1,sys=-1,fsdir=-1,sel=-1,host_sel=-1,query[2]={-1,-1},proc=-1,self=-1,attr=-1,host_attr=-1,host_exec=-1,service=-1,bin=-1,data=-1,local=-1,tmp=-1,error=0;char path[96],digest[65];struct stat stock[3];int present[3]={0};
     const char *names[]={"binder","hwbinder","vndbinder"},*queries[]={"access","context"};
@@ -75,7 +82,7 @@ static int sm_prepare_fs(int root,int helper,uint64_t helper_bytes,const char *h
     result->stage=7;
     SM_TRY(host_attr=open("/proc/self/attr/current",O_PATH|O_NOFOLLOW|O_CLOEXEC));SM_TRY(host_exec=open("/proc/self/attr/exec",O_PATH|O_NOFOLLOW|O_CLOEXEC));SM_TRY(*context_fd=open("/proc/self/attr/exec",O_WRONLY|O_NOFOLLOW|O_CLOEXEC));
     SM_TRY(proc=sm_new_tmpfs(root,"proc","size=1m,mode=0755",MS_NOEXEC));SM_TRY(self=sm_make_path(proc,"self",0755));SM_TRY(attr=sm_make_path(self,"attr",0755));SM_TRY(fd=openat(attr,"current",O_CREAT|O_EXCL|O_WRONLY|O_CLOEXEC|O_NOFOLLOW,0444));close(fd);fd=-1;
-    SM_TRY(sm_bind_file(host_attr,attr,"current",1,PROC_SUPER_MAGIC));SM_TRY(fd=openat(attr,"exec",O_CREAT|O_EXCL|O_WRONLY|O_CLOEXEC|O_NOFOLLOW,0444));close(fd);fd=-1;SM_TRY(sm_bind_file(host_exec,attr,"exec",1,PROC_SUPER_MAGIC));SM_TRY(symlinkat("self",proc,"thread-self"));result->self_proc_only=1;
+    SM_TRY(sm_bind_file(host_attr,attr,"current",1,PROC_SUPER_MAGIC));SM_TRY(fd=openat(attr,"exec",O_CREAT|O_EXCL|O_WRONLY|O_CLOEXEC|O_NOFOLLOW,0444));close(fd);fd=-1;SM_TRY(sm_bind_file(host_exec,attr,"exec",1,PROC_SUPER_MAGIC));SM_TRY(symlinkat("self",proc,"thread-self"));SM_TRY(sm_make_own_pid_alias(proc));result->own_pid_alias=1;result->self_proc_only=1;
     result->stage=8;
     SM_TRY(data=sm_new_tmpfs(root,"data","size=1m,mode=0755",0));SM_TRY(local=sm_make_path(data,"local",0755));SM_TRY(tmp=sm_make_path(local,"tmp",0755));SM_TRY(fd=openat(tmp,"pd2425-sm-check.so",O_CREAT|O_EXCL|O_RDWR|O_CLOEXEC|O_NOFOLLOW,0444));
     for(uint64_t offset=0;offset<helper_bytes;){char buffer[8192];size_t want=helper_bytes-offset>sizeof(buffer)?sizeof(buffer):(size_t)(helper_bytes-offset);ssize_t n=pread(helper,buffer,want,(off_t)offset);if(n<=0){error=n<0?errno:EIO;goto done;}for(ssize_t used=0;used<n;){ssize_t k=write(fd,buffer+used,(size_t)(n-used));if(k<0&&errno==EINTR)continue;if(k<=0){error=k<0?errno:EIO;goto done;}used+=k;}offset+=(uint64_t)n;}

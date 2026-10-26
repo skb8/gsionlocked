@@ -210,3 +210,16 @@ identity and unchanged code/interpreter tests. Both real policy guard branches
 are unit-tested. Vendor manifests/properties/HAL are not spoofed or exposed;
 VINTF/property completeness may block the device test. No host policy/service or
 hardware change. The Russian guide contains the new button and report fields.
+
+
+0.1.22 adds only an owned numeric proc alias -> self (private labeled symlink),
+and requires genuine getpidcon(getpid()) to match getcon/domain. AOSP HW access
+control uses this API during local self registration. No foreign PID or full
+host proc is exposed. The guest installs the supported process-local liblog
+logger, bounded to 64 INFO+ plus 8 reserved FATAL messages; it never reads host
+logs, enables logd sockets or hooks permission/abort APIs. Output retains a 6KiB
+head and 2KiB tail. Supervisor identity and RPC failures are separate, stop
+requests and natural exit observation are recorded, and wait4 reports CPU/RSS.
+The existing 5s CPU/20s wall bounds remain. CPU-limit attribution is explicitly
+suspected, not proven. Prior owner report confirms HW guard success/cleanup but
+no HIDL response; the proc fix and additional diagnostics require device testing.

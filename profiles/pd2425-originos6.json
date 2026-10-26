@@ -711,10 +711,45 @@
       "full_launch_authorization": false
     },
     "hwservice_smoke_preview": {
-      "state": "implemented-device-unvalidated",
+      "state": "device-guard-passed-hidl-unconfirmed",
       "command": "--smoke-hwservicemanager IMAGE",
       "scope": "One pinned GSI hwservicemanager, own hwbinder, real Enforcing; no host HAL/vendor bind or hardware handoff",
-      "full_launch_authorization": false
+      "full_launch_authorization": false,
+      "last_observation": {
+        "preview_passed": false,
+        "stage": "guest_execution",
+        "child_stage": "exec",
+        "errno": 71,
+        "child_errno": 0,
+        "cleanup_errno": 0,
+        "signal": 9,
+        "prepared": true,
+        "guest_uid": 1000,
+        "guest_gid": 1000,
+        "capabilities_zero": true,
+        "no_new_privs": 1,
+        "filter_verified": 5,
+        "binder_private": true,
+        "selinux_view_verified": true,
+        "self_proc_only": true,
+        "packaged_helper_verified": true,
+        "service_domain_verified": false,
+        "process_identity_verified": false,
+        "context_manager_ping_passed": false,
+        "owned_stop": false,
+        "parent_unchanged": true,
+        "loops_released": true,
+        "temporary_directory_removed": true,
+        "host_enforcing_preserved": true,
+        "thread_limit": 8,
+        "observed_thread_peak": 1,
+        "entry_adapted": true,
+        "exec_context_requested": true,
+        "output": "PD2425_HW_ENV_OK\nSELinux: Loaded hwservice context from:\n\t\t/system/etc/selinux/plat_hwservice_contexts\n\t\t/system_ext/etc/selinux/system_ext_hwservice_contexts\n\t\t/product/etc/selinux/product_hwservice_contexts\nlibc: Using old property service protocol (\"ro.property_service.version\" is not set)\n",
+        "probe_version": "0.1.21-pd2425-hwservice",
+        "source_sha256": "0f1eb8bfbca236a5a5fdbd99791cac7075ce715954e251ca880d92565e1402bb"
+      },
+      "next_implementation": "0.1.22 own-PID proc alias + real getpidcon check; process-local guest logging, precise identity/RPC phases and wait4 accounting; device-unvalidated"
     }
   },
   "live_namespace_entries": {

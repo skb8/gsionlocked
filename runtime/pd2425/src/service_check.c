@@ -18,6 +18,7 @@
 #include <linux/android/binder.h>
 #include <linux/magic.h>
 #include "../include/service_kind.h"
+#include "../include/service_log.h"
 static _Noreturn void sm_fail(const char *stage){char message[160];int n=snprintf(message,sizeof(message),"PD2425_SM_ENV_FAIL stage=%s errno=%d\n",stage,errno);if(n>0){ssize_t out=write(2,message,(size_t)n);(void)out;}_exit(124);}
 static void sm_check_readonly(const char *path){struct statfs fs;struct statvfs flags;if(statfs(path,&fs)||statvfs(path,&flags)||(uint32_t)fs.f_type!=0xf97cff8cU||!(flags.f_flag&ST_RDONLY))sm_fail("policy_readonly");}
 /* Android exports no compute_av_flags API. Query the genuine selinuxfs
@@ -53,16 +54,18 @@ __attribute__((constructor)) static void sm_check(void){
     void (*set_mount)(const char*)=dlsym(library,"set_selinuxmnt");
     int (*enforcing)(void)=dlsym(library,"security_getenforce");
     int (*enabled)(void)=dlsym(library,"is_selinux_enabled");
+    int (*get_pid_context)(pid_t,char**)=dlsym(library,"getpidcon");
     int (*get_context)(char**)=dlsym(library,"getcon");void (*free_context)(char*)=dlsym(library,"freecon");
     int (*check_access)(const char*,const char*,const char*,const char*,void*)=dlsym(library,"selinux_check_access");
-    if(!set_mount||!enforcing||!enabled||!get_context||!free_context||!check_access)sm_fail("selinux_symbols");
+    if(!set_mount||!enforcing||!enabled||!get_pid_context||!get_context||!free_context||!check_access)sm_fail("selinux_symbols");
     set_mount("/sys/fs/selinux");if(enforcing()!=1||enabled()!=1)sm_fail("enforcing");
     char *context=NULL;if(get_context(&context)||!context||strcmp(context,kind->domain))sm_fail("domain");
+    char *pid_context=NULL;if(get_pid_context(getpid(),&pid_context)||!pid_context||strcmp(pid_context,kind->domain))sm_fail("own_pid_context");free_context(pid_context);
     if(check_access(context,kind->service_context,kind->policy_class,"add",NULL))sm_fail("policy_decision");
     sm_raw_decision(context,kind);
     free_context(context);
     char driver[64];snprintf(driver,sizeof(driver),"/dev/%s",kind->driver);int fd=open(driver,O_RDWR|O_CLOEXEC);if(fd<0)sm_fail("binder_open");
     struct statfs fs;struct binder_version version={0};
     if(fstatfs(fd,&fs)||(unsigned long)fs.f_type!=BINDERFS_SUPER_MAGIC||ioctl(fd,BINDER_VERSION,&version)||version.protocol_version!=BINDER_CURRENT_PROTOCOL_VERSION)sm_fail("binder_identity");
-    close(fd);size_t marker_bytes=strlen(kind->marker);if(write(1,kind->marker,marker_bytes)!=(ssize_t)marker_bytes)sm_fail("output");
+    close(fd);const char *log_marker=sm_enable_guest_log()?"PD2425_GUEST_LOGGER_OK\n":"PD2425_GUEST_LOGGER_UNAVAILABLE\n";ssize_t logged=write(1,log_marker,strlen(log_marker));(void)logged;size_t marker_bytes=strlen(kind->marker);if(write(1,kind->marker,marker_bytes)!=(ssize_t)marker_bytes)sm_fail("output");
 }

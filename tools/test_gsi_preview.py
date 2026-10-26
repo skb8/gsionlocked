@@ -107,6 +107,11 @@ int main(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--hw-config-fixture")){pv_service_mode=3;fwrite(pv_config(),1,pv_config_bytes(),stdout);return 0;}
  if(argc==2&&!strcmp(argv[1],"--config-fixture")){fputs(pv_bootstrap_config,stdout);return 0;}
  if(argc>1)return preview_main(argc,argv);
+ struct pv_result collected={0};char stream[12000];for(size_t n=0;n<sizeof(stream);n++)stream[n]=(char)('a'+n%26);
+ size_t offset=0;while(offset<sizeof(stream)){size_t count=offset%521+1;if(count>sizeof(stream)-offset)count=sizeof(stream)-offset;pv_capture_output(&collected,stream+offset,count);offset+=count;}
+ assert(collected.output_total==sizeof(stream)&&collected.head_used==PV_OUTPUT_HEAD&&collected.tail_used==PV_OUTPUT_TAIL);
+ assert(!memcmp(collected.output,stream,PV_OUTPUT_HEAD)&&!memcmp(collected.output_tail,stream+sizeof(stream)-PV_OUTPUT_TAIL,PV_OUTPUT_TAIL));
+ memset(&collected,0,sizeof(collected));pv_capture_output(&collected,stream,sizeof(stream));assert(!memcmp(collected.output_tail,stream+sizeof(stream)-PV_OUTPUT_TAIL,PV_OUTPUT_TAIL));
  assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=1;assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=2;assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=3;assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=0;
  dev_t parsed;assert(!pv_loop_parse("7:56\n",&parsed)&&major(parsed)==7&&minor(parsed)==56);
  const char *bad[]={"8:56\n","7:-1","7:1048576","4294967303:56","7:4294967352","7:56junk"," 7:56","7:56\nextra","7:"};
