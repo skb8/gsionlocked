@@ -52,9 +52,14 @@ int main(void){
  memset(args,0,sizeof(args));args[0]=PR_SET_PDEATHSIG;args[1]=SIGKILL;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_prctl,args)==SECCOMP_RET_ALLOW);
  args[1]=0;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_prctl,args)==deny);args[1]=SIGTERM;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_prctl,args)==deny);
  unsigned char reply[4+sizeof(struct binder_transaction_data)]={0};uint32_t command=BR_REPLY;struct binder_transaction_data data={0};memcpy(reply,&command,4);memcpy(reply+4,&data,sizeof(data));
- unsigned char mapping[32]={0};assert(sm_parse_ping(reply,sizeof(reply),mapping,sizeof(mapping))==1);
+ struct binder_transaction_data request;sm_ping_transaction(&request,&sm_service_kind);assert(request.code==0x5f504e47U&&!request.data_size&&!request.offsets_size);
+ sm_ping_transaction(&request,&hw_service_kind);assert(request.code==256921159U&&request.data_size==sizeof(sm_hidl_ping_token)&&!request.offsets_size&&!request.flags&&!request.target.handle);assert(!strcmp((const char*)(uintptr_t)request.data.ptr.buffer,"android.hidl.base@1.0::IBase"));assert(request.data_size%4==0);
+ unsigned char mapping[32]={0};assert(sm_parse_ping(reply,sizeof(reply),mapping,sizeof(mapping))==1);assert(sm_parse_ping_kind(reply,sizeof(reply),mapping,sizeof(mapping),1)==-EPROTO);
  assert(sm_parse_ping(reply,sizeof(reply)-1,mapping,sizeof(mapping))==-EPROTO);
  data.flags=TF_STATUS_CODE;data.data_size=4;data.data.ptr.buffer=(binder_uintptr_t)(uintptr_t)mapping;memcpy(reply+4,&data,sizeof(data));assert(sm_parse_ping(reply,sizeof(reply),mapping,sizeof(mapping))==1);
+ data.flags=0;memcpy(reply+4,&data,sizeof(data));assert(sm_parse_ping(reply,sizeof(reply),mapping,sizeof(mapping))==-EPROTO);assert(sm_parse_ping_kind(reply,sizeof(reply),mapping,sizeof(mapping),1)==1);
+ mapping[0]=1;assert(sm_parse_ping_kind(reply,sizeof(reply),mapping,sizeof(mapping),1)==-EPROTO);mapping[0]=0;
+ data.flags=TF_STATUS_CODE;
  data.data.ptr.buffer=(binder_uintptr_t)(uintptr_t)(mapping+sizeof(mapping)-1);memcpy(reply+4,&data,sizeof(data));assert(sm_parse_ping(reply,sizeof(reply),mapping,sizeof(mapping))==-EPROTO);
  command=BR_DEAD_REPLY;memcpy(reply,&command,4);assert(sm_parse_ping(reply,4,mapping,sizeof(mapping))==-EAGAIN);
  pid_t child=fork();assert(child>=0);if(!child){

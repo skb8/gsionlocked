@@ -21,9 +21,11 @@ source=r'''
 #include <linux/android/binder.h>
 #include <linux/magic.h>
 #include <dlfcn.h>
-static int failure,queried,located,opened;static jmp_buf escape;static char message[512];
+#include "service_kind.h"
+static int failure,queried,located,opened,hardware;
+static const struct sm_kind *expected(void){return hardware?&hw_service_kind:&sm_service_kind;}static jmp_buf escape;static char message[512];
 static uid_t identity(void){return failure==1?1001:1000;}
-static char *owner_env(const char *key){assert(!strcmp(key,"PD2425_OWNER_PID"));return failure==15?"0":"1234";}
+static char *owner_env(const char *key){if(!strcmp(key,"PD2425_SERVICE_KIND"))return failure==17?"unknown":(char*)expected()->name;assert(!strcmp(key,"PD2425_OWNER_PID"));return failure==15?"0":"1234";}
 static pid_t parent_id(void){return failure==16?4321:1234;}
 static int state(int option,...){if(option==PR_SET_PDEATHSIG){va_list a;va_start(a,option);assert(va_arg(a,int)==SIGKILL);va_end(a);return 0;}if(option==PR_GET_NO_NEW_PRIVS)return failure==2?0:1;assert(option==PR_GET_SECCOMP);return 2;}
 static int test_fs(const char *path,struct statfs *out){(void)path;memset(out,0,sizeof(*out));out->f_type=failure==3?0xEF53:0xf97cff8cU;return 0;}
@@ -32,15 +34,15 @@ static void *library_fn(const char *name,int flag){assert(!strcmp(name,"libselin
 static void set_mount(const char *path){assert(!strcmp(path,"/sys/fs/selinux"));located=1;}
 static int enabled(void){return failure==10?0:1;}
 static int enforce(void){assert(located);return failure==5?0:1;}
-static int context(char **out){*out=failure==6?"u:r:ksu:s0":"u:r:servicemanager:s0";return 0;}
-static void release_context(char *c){assert(c&&!strcmp(c,"u:r:servicemanager:s0"));}
-static int decision(const char *from,const char *to,const char *class_name,const char *permission,void *aux){assert(!strcmp(from,"u:r:servicemanager:s0")&&!strcmp(to,"u:object_r:service_manager_service:s0")&&!strcmp(class_name,"service_manager")&&!strcmp(permission,"add")&&!aux);queried=1;return failure==7?-1:0;}
+static int context(char **out){*out=failure==6?"u:r:ksu:s0":(char*)expected()->domain;return 0;}
+static void release_context(char *c){assert(c&&!strcmp(c,expected()->domain));}
+static int decision(const char *from,const char *to,const char *class_name,const char *permission,void *aux){assert(!strcmp(from,expected()->domain)&&!strcmp(to,expected()->service_context)&&!strcmp(class_name,expected()->policy_class)&&!strcmp(permission,"add")&&!aux);queried=1;return failure==7?-1:0;}
 static void *symbol(void *lib,const char *name){assert(lib==(void*)1);if(!strcmp(name,"set_selinuxmnt"))return (void*)set_mount;if(!strcmp(name,"is_selinux_enabled"))return (void*)enabled;if(!strcmp(name,"security_getenforce"))return (void*)enforce;if(!strcmp(name,"getcon"))return (void*)context;if(!strcmp(name,"freecon"))return (void*)release_context;if(!strcmp(name,"selinux_check_access"))return (void*)decision;assert(0);return NULL;}
 static int opening(const char *path,int flag,...){
- if(!strcmp(path,"/sys/fs/selinux/class/service_manager/index"))return 11;
- if(!strcmp(path,"/sys/fs/selinux/class/service_manager/perms/add"))return 12;
+ char class_path[160];snprintf(class_path,sizeof(class_path),"/sys/fs/selinux/class/%s/index",expected()->policy_class);if(!strcmp(path,class_path))return 11;
+ snprintf(class_path,sizeof(class_path),"/sys/fs/selinux/class/%s/perms/add",expected()->policy_class);if(!strcmp(path,class_path))return 12;
  if(!strcmp(path,"/sys/fs/selinux/access")){assert(flag==(O_RDWR|O_CLOEXEC|O_NOFOLLOW));return 13;}
- assert(queried&&!strcmp(path,"/dev/binder")&&flag==(O_RDWR|O_CLOEXEC));opened=1;return 10;
+ char driver[64];snprintf(driver,sizeof(driver),"/dev/%s",expected()->driver);assert(queried&&!strcmp(path,driver)&&flag==(O_RDWR|O_CLOEXEC));opened=1;return 10;
 }
 static ssize_t reading(int fd,void *buffer,size_t count){
  const char *text=fd==11?"42":fd==12?"1":failure==11?"0 ffffffff 0 0 1 0":failure==12?"1 ffffffff 0 0 1 1":failure==13?"garbage":failure==14?"1 ffffffff 0 0 1 0 extra":"1 ffffffff 0 0 1 0";
@@ -49,7 +51,7 @@ static ssize_t reading(int fd,void *buffer,size_t count){
 static int fd_fs(int fd,struct statfs *out){assert(fd==10);memset(out,0,sizeof(*out));out->f_type=failure==8?0xEF53:BINDERFS_SUPER_MAGIC;return 0;}
 static int query(int fd,unsigned long request,...){assert(fd==10&&request==BINDER_VERSION);va_list a;va_start(a,request);struct binder_version *v=va_arg(a,struct binder_version*);va_end(a);v->protocol_version=failure==9?7:BINDER_CURRENT_PROTOCOL_VERSION;return 0;}
 static int closing(int fd){assert(fd>=10&&fd<=13);return 0;}
-static ssize_t writing(int fd,const void *text,size_t size){if(fd==13){assert(strstr(text,"u:r:servicemanager:s0 u:object_r:service_manager_service:s0 42"));return (ssize_t)size;}assert(size<sizeof(message));memcpy(message,text,size);message[size]=0;return (ssize_t)size;}
+static ssize_t writing(int fd,const void *text,size_t size){if(fd==13){char query[256];snprintf(query,sizeof(query),"%s %s 42",expected()->domain,expected()->service_context);assert(!strcmp(text,query));return (ssize_t)size;}assert(size<sizeof(message));memcpy(message,text,size);message[size]=0;return (ssize_t)size;}
 static _Noreturn void exiting(int code){assert(code==124);longjmp(escape,1);}
 #define getuid identity
 #define geteuid identity
@@ -72,9 +74,9 @@ static _Noreturn void exiting(int code){assert(code==124);longjmp(escape,1);}
 #define __attribute__(value)
 #include "service_check.c"
 int main(void){
- for(volatile int n=0;n<=16;n++){
+ for(hardware=0;hardware<2;hardware++)for(volatile int n=0;n<=17;n++){
   failure=n;queried=located=opened=0;message[0]=0;
-  if(!setjmp(escape)){sm_check();assert(!n&&!strcmp(message,"PD2425_SM_ENV_OK\n")&&queried&&opened);}
+  if(!setjmp(escape)){sm_check();assert(!n&&!strcmp(message,expected()->marker)&&queried&&opened);}
   else {assert(n&&strstr(message,"PD2425_SM_ENV_FAIL"));if(n<5||n>=15)assert(!located);if(n<7||n==10)assert(!queried);if(n<8||n>=10)assert(!opened);}
  }
  return 0;
@@ -82,6 +84,6 @@ int main(void){
 '''
 with tempfile.TemporaryDirectory() as temp:
     p=Path(temp);(p/'test.c').write_text(source)
-    subprocess.run([os.getenv('CC','cc'),'-O2','-Wall','-Wextra','-Werror','-I',str(ROOT/'runtime/pd2425/src'),str(p/'test.c'),'-o',str(p/'test')],check=True)
+    subprocess.run([os.getenv('CC','cc'),'-O2','-Wall','-Wextra','-Werror','-I',str(ROOT/'runtime/pd2425/include'),'-I',str(ROOT/'runtime/pd2425/src'),str(p/'test.c'),'-o',str(p/'test')],check=True)
     subprocess.run([str(p/'test')],check=True,timeout=5)
 print('PASS: real-policy call required; wrong UID/domain/enforcing, writable policy view, wrong BinderFS/protocol cannot enter service main (mock APIs)')

@@ -121,6 +121,12 @@ def service_smoke_ok(test,report):
     if not all(test.get(k) is True for k in ['binder_private','selinux_view_verified','self_proc_only','packaged_helper_verified','service_domain_verified','process_identity_verified','context_manager_ping_passed','owned_stop','host_enforcing_preserved','entry_adapted','exec_context_requested']):return False
     if test.get('thread_limit')!=8 or test.get('pthread_clone_flags')!=0x3d0f00 or type(test.get('observed_thread_peak')) is not int or not 1<=test['observed_thread_peak']<=8:return False
     return (test.get('service_entry_sha256')==pin['service_smoke_preview']['entry_sha256'] and test.get('service_filesystem_stage')=='complete' and test.get('bootstrap_linkerconfig_sha256')==pin['service_smoke_preview']['bootstrap_linkerconfig_sha256'] and isinstance(test.get('packaged_helper_sha256'),str) and re.fullmatch(r'[0-9a-f]{64}',test['packaged_helper_sha256']) is not None and isinstance(test.get('output'),str) and 'PD2425_SM_ENV_OK\n' in test['output'])
+def hwservice_smoke_ok(test,report):
+    if not isinstance(test,dict) or test.get('component')!='hwservice-smoke-preview':return False
+    pin=json.loads((ROOT/'profiles/pd2425-evox-preview.json').read_text());sm=pin['service_smoke_preview'];hw=pin['hwservice_smoke_preview']
+    common=dict(test,component='service-smoke-preview',target=sm['target'],output='PD2425_SM_ENV_OK\n',service_entry_sha256=sm['entry_sha256'],bootstrap_linkerconfig_sha256=sm['bootstrap_linkerconfig_sha256'])
+    if not service_smoke_ok(common,report):return False
+    return (test.get('target')==hw['target'] and test.get('service_domain')==hw['selinux_domain'] and test.get('binder_driver')=='hwbinder' and test.get('ping_method')=='HIDL IBase.ping' and test.get('service_entry_sha256')==hw['entry_sha256'] and test.get('bootstrap_linkerconfig_sha256')==hw['bootstrap_linkerconfig_sha256'] and isinstance(test.get('output'),str) and 'PD2425_HW_ENV_OK\n' in test['output'])
 def review(report,profile):
     issues=[];observed=[]
     def issue(code,detail):issues.append({'code':code,'detail':detail})
@@ -134,7 +140,7 @@ def review(report,profile):
     preview=tests.get('gsi_preview') if isinstance(tests,dict) else None
     if report.get('runtime_ready') is not False:issue('report_contract','Unexpected readiness claim')
     if report.get('no_device_changes') is not True:
-        if not (isinstance(cgtest,dict) or isinstance(nstest,dict) or isinstance(bstest,dict) or isinstance(rftest,dict) or isinstance(guardtest,dict) or isinstance(preview,dict) or (isinstance(tests,dict) and any(isinstance(tests.get(k),dict) for k in ['service_loader','service_smoke']))) or report.get('observations_read_only') is not True:issue('report_contract','Unrecognized non-read-only report')
+        if not (isinstance(cgtest,dict) or isinstance(nstest,dict) or isinstance(bstest,dict) or isinstance(rftest,dict) or isinstance(guardtest,dict) or isinstance(preview,dict) or (isinstance(tests,dict) and any(isinstance(tests.get(k),dict) for k in ['service_loader','service_smoke','hwservice_smoke']))) or report.get('observations_read_only') is not True:issue('report_contract','Unrecognized non-read-only report')
     hardware=report.get('device')==profile['device'] and report.get('sdk')==str(profile['host_sdk']) and report.get('abi')=='arm64-v8a'
     host_match=hardware and report.get('fingerprint') in profile.get('accepted_host_fingerprints',[profile['fingerprint']])
     ota_exact=hardware and report.get('fingerprint')==profile['fingerprint']
@@ -221,13 +227,16 @@ def review(report,profile):
     if guardtest is not None and not guard_pass:issue('guard_test_not_passed',str(guardtest.get('stage',guardtest.get('collection_error',guardtest.get('not_run','incomplete result')))) if isinstance(guardtest,dict) else 'invalid result')
     service=tests.get('service_loader') if isinstance(tests,dict) else None
     smoke=tests.get('service_smoke') if isinstance(tests,dict) else None
+    hwsmoke=tests.get('hwservice_smoke') if isinstance(tests,dict) else None
+    hwsmoke_pass=test_environment_ok and hwservice_smoke_ok(hwsmoke,report)
+    if hwsmoke is not None and not hwsmoke_pass:issue('hwservice_smoke_not_passed',str(hwsmoke.get('child_stage',hwsmoke.get('stage','incomplete result'))) if isinstance(hwsmoke,dict) else 'invalid result')
     smoke_pass=test_environment_ok and service_smoke_ok(smoke,report)
     if smoke is not None and not smoke_pass:issue('service_smoke_not_passed',str(smoke.get('child_stage',smoke.get('stage','incomplete result'))) if isinstance(smoke,dict) else 'invalid result')
     service_pass=test_environment_ok and service_loader_ok(service,report)
     if service is not None and not service_pass:issue('service_loader_not_passed',str(service.get('child_stage',service.get('stage','incomplete result'))) if isinstance(service,dict) else 'invalid result')
     preview_pass=test_environment_ok and gsi_preview_ok(preview,report)
     if preview is not None and not preview_pass:issue('gsi_preview_not_passed',str(preview.get('child_stage',preview.get('stage','incomplete result'))) if isinstance(preview,dict) else 'invalid result')
-    return {'schema':2,'runtime_ready':False,'host_profile_match':host_match,'ota_fingerprint_exact_match':ota_exact,'observation_checks_passed':not issues,'issues':issues,'observed_process_credentials':observed,'return_keys':selected_keys,'cgroup_kill_child_test_passed':bool(cgroup_pass or namespace_pass or bootstrap_pass or rootfs_pass or guard_pass),'namespace_test_passed':namespace_pass,'bootstrap_test_passed':bootstrap_pass,'rootfs_test_passed':bool(rootfs_pass or guard_pass),'syscall_guard_test_passed':guard_pass,'gsi_shell_preview_passed':preview_pass,'service_loader_passed':service_pass,'service_smoke_passed':smoke_pass,'remaining_device_tests':REMAINING,'warning':'Observed identities and test results are not launch authorization. No service control is generated.'}
+    return {'schema':2,'runtime_ready':False,'host_profile_match':host_match,'ota_fingerprint_exact_match':ota_exact,'observation_checks_passed':not issues,'issues':issues,'observed_process_credentials':observed,'return_keys':selected_keys,'cgroup_kill_child_test_passed':bool(cgroup_pass or namespace_pass or bootstrap_pass or rootfs_pass or guard_pass),'namespace_test_passed':namespace_pass,'bootstrap_test_passed':bootstrap_pass,'rootfs_test_passed':bool(rootfs_pass or guard_pass),'syscall_guard_test_passed':guard_pass,'gsi_shell_preview_passed':preview_pass,'service_loader_passed':service_pass,'service_smoke_passed':smoke_pass,'hwservice_smoke_passed':hwsmoke_pass,'remaining_device_tests':REMAINING,'warning':'Observed identities and test results are not launch authorization. No service control is generated.'}
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('report',type=Path);p.add_argument('--output',type=Path);a=p.parse_args()
     result=review(json.loads(a.report.read_text()),json.loads((ROOT/'profiles/pd2425-originos6.json').read_text()))

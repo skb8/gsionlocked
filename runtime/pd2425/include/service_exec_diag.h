@@ -28,14 +28,14 @@ static int sm_exec_file(int fd,char *label,size_t bytes,int *mode,int *uid,int *
     ssize_t n=fgetxattr(fd,"security.selinux",label,bytes-1);if(n<=0||n>=(ssize_t)bytes-1)return errno?errno:E2BIG;label[n]=0;
     *mode=info.st_mode&07777;*uid=info.st_uid;*gid=info.st_gid;*flags=view.f_flag;return 0;
 }
-static void sm_capture_exec(int service,int linker,struct sm_exec_observation *out){
+static void sm_capture_exec(int service,int linker,struct sm_exec_observation *out,const struct sm_kind *kind){
     out->error=read_text("/proc/self/attr/current",out->source_context,sizeof(out->source_context));if(out->error)return;out->source_context[strcspn(out->source_context,"\n")]=0;
     out->error=sm_exec_file(service,out->service_label,sizeof(out->service_label),&out->service_mode,&out->service_uid,&out->service_gid,&out->service_flags);if(out->error)return;
     out->error=sm_exec_file(linker,out->linker_label,sizeof(out->linker_label),&out->linker_mode,&out->linker_uid,&out->linker_gid,&out->linker_flags);if(out->error)return;
     const char *transition[]={"transition"},*nnp[]={"nnp_transition","nosuid_transition"},*entry[]={"entrypoint","read","open","execute","map"};
-    sm_query_av(out->source_context,"u:r:servicemanager:s0","process",transition,1,&out->transition);
-    sm_query_av(out->source_context,"u:r:servicemanager:s0","process2",nnp,2,&out->nnp_nosuid);
-    sm_query_av("u:r:servicemanager:s0",out->service_label,"file",entry,5,&out->entrypoint);
+    sm_query_av(out->source_context,kind->domain,"process",transition,1,&out->transition);
+    sm_query_av(out->source_context,kind->domain,"process2",nnp,2,&out->nnp_nosuid);
+    sm_query_av(kind->domain,out->service_label,"file",entry,5,&out->entrypoint);
 }
 static void sm_json_av(const char *name,const struct sm_av_observation *value){
     printf(",\"%s\":{\"errno\":%d,\"allowed\":%u,\"requested\":%u,\"flags\":%u}",name,value->error,value->allowed,value->requested,value->flags);

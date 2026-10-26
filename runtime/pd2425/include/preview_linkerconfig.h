@@ -19,6 +19,14 @@ static const char pv_smoke_config[] =
 "namespace.default.isolated = true\n"
 "namespace.default.search.paths = /system/lib64/bootstrap:/system/lib64:/system/system_ext/lib64:/apex/com.android.runtime/lib64\n"
 "namespace.default.permitted.paths = /system/lib64/bootstrap:/apex/com.android.runtime/lib64:/apex/com.android.runtime/bin:/system/lib64:/system/system_ext/lib64:/data/local/tmp\n";
+static const char pv_hw_config[] =
+"dir.bootstrap = /system/bin\n"
+"dir.bootstrap = /system/system_ext/bin\n"
+"dir.bootstrap = /apex/com.android.runtime/bin\n"
+"[bootstrap]\n"
+"namespace.default.isolated = true\n"
+"namespace.default.search.paths = /system/lib64/bootstrap:/system/lib64:/system/system_ext/lib64:/apex/com.android.runtime/lib64\n"
+"namespace.default.permitted.paths = /system/lib64/bootstrap:/apex/com.android.runtime/lib64:/apex/com.android.runtime/bin:/system/lib64:/system/system_ext/lib64:/data/local/tmp\n";
 static int pv_create_linkerconfig_body(int root,const char *body,size_t bytes,int label_private){
     struct open_how how={.flags=O_RDONLY|O_DIRECTORY|O_CLOEXEC,.resolve=RESOLVE_IN_ROOT|RESOLVE_NO_SYMLINKS};
     int dir=(int)syscall(SYS_openat2,root,"linkerconfig",&how,sizeof(how));if(dir<0)return -1;

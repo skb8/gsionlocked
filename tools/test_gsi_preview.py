@@ -41,7 +41,7 @@ static int test_open(const char*,int,...),test_fstat(int,struct stat*),test_ioct
 #include <stdarg.h>
 int __system_property_get(const char*k,char*v){(void)k;*v=0;return 0;}
 static int test_execve(const char *file,char *const args[],char *const env[]){
- if(pv_service_mode==2){assert(!strcmp(file,"/system/bin/servicemanager")&&!strcmp(args[0],file)&&!args[1]);assert(!strncmp(env[4],"PD2425_OWNER_PID=",17)&&!env[5]);errno=ENOEXEC;return -1;}
+ if(pv_service_mode>=2){assert(!strcmp(file,pv_service_mode==3?"/system/system_ext/bin/hwservicemanager":"/system/bin/servicemanager")&&!strcmp(args[0],file)&&!args[1]);assert(!strncmp(env[4],"PD2425_OWNER_PID=",17)&&!strcmp(env[5],pv_service_mode==3?"PD2425_SERVICE_KIND=hwservicemanager":"PD2425_SERVICE_KIND=servicemanager")&&!env[6]);errno=ENOEXEC;return -1;}
  assert(!strcmp(file,"/apex/com.android.runtime/bin/linker64")&&!strcmp(args[0],file));
  if(pv_service_mode==1){assert(!strcmp(args[1],"--list")&&!strcmp(args[2],"/system/bin/servicemanager")&&!args[3]);errno=ENOEXEC;return -1;}
  assert(!strcmp(args[1],"/system/bin/sh")&&!strcmp(args[2],"-c")&&!strcmp(args[3],"builtin echo PD2425_GSI_SHELL_OK")&&!args[4]);
@@ -104,9 +104,10 @@ static uint32_t eval(unsigned arch,unsigned nr,uint64_t *args){
  }assert(0);return 0;
 }
 int main(int argc,char **argv){
+ if(argc==2&&!strcmp(argv[1],"--hw-config-fixture")){pv_service_mode=3;fwrite(pv_config(),1,pv_config_bytes(),stdout);return 0;}
  if(argc==2&&!strcmp(argv[1],"--config-fixture")){fputs(pv_bootstrap_config,stdout);return 0;}
  if(argc>1)return preview_main(argc,argv);
- assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=1;assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=2;assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=0;
+ assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=1;assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=2;assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=3;assert(pv_exec_guest()==-1&&errno==ENOEXEC);pv_service_mode=0;
  dev_t parsed;assert(!pv_loop_parse("7:56\n",&parsed)&&major(parsed)==7&&minor(parsed)==56);
  const char *bad[]={"8:56\n","7:-1","7:1048576","4294967303:56","7:4294967352","7:56junk"," 7:56","7:56\nextra","7:"};
  for(unsigned n=0;n<sizeof(bad)/sizeof(bad[0]);n++)assert(pv_loop_parse(bad[n],&parsed)==EPROTO);
@@ -179,6 +180,8 @@ with tempfile.TemporaryDirectory() as temp:
     config=subprocess.check_output([str(d/'test'),'--config-fixture'])
     assert hashlib.sha256(config).hexdigest()==pin['service_loader_preview']['bootstrap_linkerconfig_sha256']
     assert b'namespace.default.isolated = true' in config and b'/vendor' not in config and b'/data' not in config
+    hwconfig=subprocess.check_output([str(d/'test'),'--hw-config-fixture']);assert hashlib.sha256(hwconfig).hexdigest()==pin['hwservice_smoke_preview']['bootstrap_linkerconfig_sha256'] and b'dir.bootstrap = /system/system_ext/bin' in hwconfig
+    hwresult=subprocess.run([str(d/'test'),'--smoke-hwservicemanager','/does/not/exist'],capture_output=True,text=True,timeout=5);hw=json.loads(hwresult.stdout);assert hwresult.returncode==31 and hw['component']=='hwservice-smoke-preview' and hw['target']==pin['hwservice_smoke_preview']['target'] and hw['spawned']==0 and not hw['preview_passed']
     r=subprocess.run([str(d/'test'),'--preview-service-loader','/does/not/exist'],capture_output=True,text=True,timeout=5)
     result=json.loads(r.stdout);assert r.returncode==31 and result['component']=='service-loader-preview' and result['target']=='/system/bin/servicemanager' and not result['linkerconfig_readonly'] and result['spawned']==0 and not result['runtime_ready']
     r=subprocess.run([str(d/'test'),'--preview-gsi','/does/not/exist'],capture_output=True,text=True,timeout=5)

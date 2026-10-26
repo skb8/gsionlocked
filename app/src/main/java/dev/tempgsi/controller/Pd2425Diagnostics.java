@@ -61,9 +61,10 @@ final class Pd2425Diagnostics {
     static String collectGsiPreview(Context context,String selectedSha)throws Exception {return collectGsi(context,selectedSha,0);}
     static String collectServiceLoader(Context context,String selectedSha)throws Exception {return collectGsi(context,selectedSha,1);}
     static String collectServiceSmoke(Context context,String selectedSha)throws Exception {return collectGsi(context,selectedSha,2);}
+    static String collectHwServiceSmoke(Context context,String selectedSha)throws Exception {return collectGsi(context,selectedSha,3);}
     private static String collectGsi(Context context,String selectedSha,int mode)throws Exception {
-        final String field=mode==2?"service_smoke":mode==1?"service_loader":"gsi_preview";
-        final String component=mode==2?"service-smoke-preview":mode==1?"service-loader-preview":"gsi-preview";
+        final String field=mode==3?"hwservice_smoke":mode==2?"service_smoke":mode==1?"service_loader":"gsi_preview";
+        final String component=mode==3?"hwservice-smoke-preview":mode==2?"service-smoke-preview":mode==1?"service-loader-preview":"gsi-preview";
         if(!PREVIEW_SHA.equals(selectedSha))throw new IOException("Для первого запуска нужен неизменённый EvoX 11.11 arm64-ab VANILLA от 20.09.2026. Ссылка и SHA-256 — в docs/PD2425.ru.md.");
         File image=new File(context.getFilesDir(),"gsi/selected.img");
         if(!image.isFile())throw new IOException("Импортируйте raw ext4 .img через Select GSI → Browse files.");
@@ -71,7 +72,7 @@ final class Pd2425Diagnostics {
         if(!base.getBoolean("host_profile_match"))throw new IOException("Точный профиль хоста не совпал.");
         File preview=new File(context.getApplicationInfo().nativeLibraryDir,"libpd2425_gsi.so");
         if(!preview.isFile())throw new IOException("Компонент запуска GSI отсутствует в APK.");
-        String command=quote(preview.getAbsolutePath())+(mode==2?" --smoke-servicemanager ":mode==1?" --preview-service-loader ":" --preview-gsi ")+quote(image.getAbsolutePath())+"; rc=$?; case \"$rc\" in 0|31|40) exit 0;; *) exit \"$rc\";; esac";
+        String command=quote(preview.getAbsolutePath())+(mode==3?" --smoke-hwservicemanager ":mode==2?" --smoke-servicemanager ":mode==1?" --preview-service-loader ":" --preview-gsi ")+quote(image.getAbsolutePath())+"; rc=$?; case \"$rc\" in 0|31|40) exit 0;; *) exit \"$rc\";; esac";
         final StringBuilder report=new StringBuilder();
         try {
             RootCommands.stream(context,command,line->{if(line.startsWith("{")){if(report.length()!=0||line.length()>65536)throw new IllegalStateException("Invalid preview output");report.append(line);}},360,()->false,false);

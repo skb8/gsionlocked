@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "source_bytes": 120312,
+  "source_sha256": "94fcf5bcb74be728685b43daf083f69cb7ec642233a71d423b9363c0ac99d1c9",
+  "patched_sha256": "bcac519455983e6062fe91ee3e685090499ab54b5b000dc08d2e4f16f9c7b9f8",
+  "string_source": 6272,
+  "string_bytes": 11196,
+  "string_destination": 33916,
+  "helper": "/data/local/tmp/pd2425-sm-check.so",
+  "edits": [
+    {
+      "offset": 101928,
+      "old": 21,
+      "value": 1
+    },
+    {
+      "offset": 101936,
+      "old": 0,
+      "value": 11196
+    },
+    {
+      "offset": 102144,
+      "old": 6272,
+      "value": 33916
+    },
+    {
+      "offset": 102160,
+      "old": 11196,
+      "value": 11231
+    },
+    {
+      "offset": 208,
+      "old": 33916,
+      "value": 45147
+    },
+    {
+      "offset": 216,
+      "old": 33916,
+      "value": 45147
+    },
+    {
+      "offset": 119048,
+      "old": 6272,
+      "value": 33916
+    },
+    {
+      "offset": 119056,
+      "old": 6272,
+      "value": 33916
+    },
+    {
+      "offset": 119064,
+      "old": 11196,
+      "value": 11231
+    }
+  ],
+  "instructions_unchanged": true,
+  "interpreter_unchanged": true,
+  "policy_changes": false,
+  "state": "implemented-device-unvalidated",
+  "path": "/system/system_ext/bin/hwservicemanager",
+  "original_symlink": "/system/bin/hwservicemanager",
+  "interpreter": "/system/bin/bootstrap/linker64",
+  "full_android_boot": false,
+  "policy_class": "hwservice_manager",
+  "service_context": "u:object_r:hidl_manager_hwservice:s0",
+  "framework_manifest": "GSI system_ext declares android.hidl.manager@1.2 default, max-level 8; actual vendor/VINTF compatibility unverified"
+}

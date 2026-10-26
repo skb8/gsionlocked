@@ -15,6 +15,7 @@
 #include "preview_image.h"
 #include "preview_policy.h"
 #include "preview_linkerconfig.h"
+#include "service_kind.h"
 #include "service_fs.h"
 #include "service_exec_diag.h"
 #include "service_client.h"
@@ -25,6 +26,9 @@
 #endif
 static int pv_helper_fd=-1;
 static int pv_service_mode;
+static const struct sm_kind *pv_kind(void){return pv_service_mode==3?&hw_service_kind:&sm_service_kind;}
+static const char *pv_config(void){return pv_service_mode==3?pv_hw_config:pv_service_mode>=2?pv_smoke_config:pv_bootstrap_config;}
+static size_t pv_config_bytes(void){return pv_service_mode==3?sizeof(pv_hw_config)-1:pv_service_mode>=2?sizeof(pv_smoke_config)-1:sizeof(pv_bootstrap_config)-1;}
 struct pv_record {struct sm_exec_observation exec;struct sm_environment sm;int linkerconfig_readonly,prepared,error,stage,uid,gid,caps_zero,nnp,filter_verified,namespaces_private,loop_count,loops[2],loop_control_errno,loop_node_errno,loop_candidates,loop_preferred,loop_probe_number,loop_operation,loop_actual_major,loop_actual_minor,loop_expected_major,loop_expected_minor;};
 struct pv_result {int thread_peak;int ping_passed,identity_verified,owned_stop,host_enforcing, ping_errno;int error,cleanup_error,spawned,reaped,exit_code,signal,metadata_received,parent_unchanged,loops_released,temp_removed;const char *stage;char digest[65],output[8193];struct pv_record child;};
 static const char *pv_stages[]={"none","parent_death","private_namespaces","image_loop","image_mount","runtime_apex","runtime_loop","runtime_mount","elf_validation","chroot","drop_privileges","close_fds","seccomp","exec","bootstrap_linkerconfig","service_filesystems","service_domain"};
@@ -127,7 +131,7 @@ static int pv_exec_guest(void){
     /* Force the mksh builtin: external printf would require forbidden fork. */
     char *args[]={"/apex/com.android.runtime/bin/linker64","/system/bin/sh","-c","builtin echo PD2425_GSI_SHELL_OK",NULL};
     char *env[]={"PATH=/system/bin","HOME=/","ANDROID_ROOT=/system","ANDROID_RUNTIME_ROOT=/apex/com.android.runtime","LD_LIBRARY_PATH=/apex/com.android.runtime/lib64/bionic:/system/lib64",NULL};
-    if(pv_service_mode==2){char owner[64];snprintf(owner,sizeof(owner),"PD2425_OWNER_PID=%ld",(long)getppid());char *run[]={"/system/bin/servicemanager",NULL};char *service_env[]={env[0],env[1],env[2],env[3],owner,NULL};return execve(run[0],run,service_env);}
+    if(pv_service_mode>=2){char owner[64];snprintf(owner,sizeof(owner),"PD2425_OWNER_PID=%ld",(long)getppid());char *run[]={(char*)pv_kind()->path,NULL};char *service_env[]={env[0],env[1],env[2],env[3],owner,pv_service_mode==3?"PD2425_SERVICE_KIND=hwservicemanager":"PD2425_SERVICE_KIND=servicemanager",NULL};return execve(run[0],run,service_env);}
     if(pv_service_mode==1){char *list[]={args[0],"--list","/system/bin/servicemanager",NULL};return execve(list[0],list,env);}
     return execve(args[0],args,env);
 }
@@ -149,15 +153,15 @@ static void pv_worker(int image,int metadata,int output,int owner_fd,const char 
     struct open_how dirhow={.flags=O_RDONLY|O_DIRECTORY|O_CLOEXEC,.resolve=RESOLVE_IN_ROOT|RESOLVE_NO_SYMLINKS};
     int apexdir=(int)syscall(SYS_openat2,root,"apex",&dirhow,sizeof(dirhow));PV_STEP(7,apexdir);
     snprintf(path,sizeof(path),"/proc/self/fd/%d",apexdir);PV_STEP(7,mount("tmpfs",path,"tmpfs",MS_NOSUID|MS_NODEV,"size=1m,mode=0755"));close(apexdir);
-    int writable_apex=pv_inside(root,"apex",O_RDONLY|O_DIRECTORY);PV_STEP(7,writable_apex);if(pv_service_mode==2){const char label[]="u:object_r:apex_mnt_dir:s0";PV_STEP(7,fsetxattr(writable_apex,"security.selinux",label,sizeof(label),0));}PV_STEP(7,mkdirat(writable_apex,"com.android.runtime",0755));
+    int writable_apex=pv_inside(root,"apex",O_RDONLY|O_DIRECTORY);PV_STEP(7,writable_apex);if(pv_service_mode>=2){const char label[]="u:object_r:apex_mnt_dir:s0";PV_STEP(7,fsetxattr(writable_apex,"security.selinux",label,sizeof(label),0));}PV_STEP(7,mkdirat(writable_apex,"com.android.runtime",0755));
     char mountpoint[256],source[64];snprintf(mountpoint,sizeof(mountpoint),"/proc/self/fd/%d/com.android.runtime",writable_apex);snprintf(source,sizeof(source),"/proc/self/fd/%d",loop[1]);
     PV_STEP(7,mount(source,mountpoint,"ext4",MS_RDONLY|MS_NOSUID|MS_NODEV,"noload"));close(writable_apex);
-    if(pv_service_mode){if(pv_service_mode==2){PV_STEP(15,sm_prepare_fs(root,pv_helper_fd,PD_SM_CHECK_BYTES,PD_SM_CHECK_SHA,&r.sm,&context_fd));PV_STEP(14,pv_create_linkerconfig_body(root,pv_smoke_config,sizeof(pv_smoke_config)-1,1));}else PV_STEP(14,pv_create_linkerconfig(root));r.linkerconfig_readonly=1;}
-    int linker=-1,shell=-1;PV_STEP(8,linker=pv_inside(root,pv_service_mode==2?"system/bin/bootstrap/linker64":"apex/com.android.runtime/bin/linker64",O_RDONLY));PV_CHECK(8,pv_elf64(linker));
+    if(pv_service_mode){if(pv_service_mode>=2){PV_STEP(15,sm_prepare_fs(root,pv_helper_fd,PD_SM_CHECK_BYTES,PD_SM_CHECK_SHA,&r.sm,&context_fd,pv_kind()));PV_STEP(14,pv_create_linkerconfig_body(root,pv_config(),pv_config_bytes(),1));}else PV_STEP(14,pv_create_linkerconfig(root));r.linkerconfig_readonly=1;}
+    int linker=-1,shell=-1;PV_STEP(8,linker=pv_inside(root,pv_service_mode>=2?"system/bin/bootstrap/linker64":"apex/com.android.runtime/bin/linker64",O_RDONLY));PV_CHECK(8,pv_elf64(linker));
     unsigned char capability[64];errno=0;ssize_t capsize=fgetxattr(linker,"security.capability",capability,sizeof(capability));if(capsize>=0||(errno!=ENODATA&&errno!=ENOTSUP)){r.error=EACCES;goto failed;}
-    PV_STEP(8,shell=pv_inside(root,pv_service_mode?"system/bin/servicemanager":"system/bin/sh",O_RDONLY));PV_CHECK(8,pv_elf64(shell));
-    if(pv_service_mode==2){struct stat info;PV_STEP(8,fstat(shell,&info));r.sm.service_dev=info.st_dev;r.sm.service_ino=info.st_ino;PV_STEP(8,fstat(linker,&info));r.sm.linker_dev=info.st_dev;r.sm.linker_ino=info.st_ino;}
-    if(pv_service_mode==2)sm_capture_exec(shell,linker,&r.exec);
+    PV_STEP(8,shell=pv_inside(root,pv_service_mode?pv_kind()->path+1:"system/bin/sh",O_RDONLY));PV_CHECK(8,pv_elf64(shell));
+    if(pv_service_mode>=2){struct stat info;PV_STEP(8,fstat(shell,&info));r.sm.service_dev=info.st_dev;r.sm.service_ino=info.st_ino;PV_STEP(8,fstat(linker,&info));r.sm.linker_dev=info.st_dev;r.sm.linker_ino=info.st_ino;}
+    if(pv_service_mode>=2)sm_capture_exec(shell,linker,&r.exec,pv_kind());
     close(linker);close(shell);
     /* Root/runtime remain immutable. Smoke adds private tmpfs, own proc attrs
        and a real readonly SELinux view with two query-only RW aliases. */
@@ -166,16 +170,16 @@ static void pv_worker(int image,int metadata,int output,int owner_fd,const char 
        A tiny AS limit breaks libc before main. Fork is denied by seccomp;
        NPROC=0 would also make exec fail after the UID transition. */
     PV_STEP(10,pv_limit(RLIMIT_AS,(rlim_t)64*1024*1024*1024));
-    PV_STEP(10,prctl(PR_CAP_AMBIENT,PR_CAP_AMBIENT_CLEAR_ALL,0,0,0));PV_STEP(10,setgroups(0,NULL));PV_STEP(10,setresgid(pv_service_mode==2?1000:65534,pv_service_mode==2?1000:65534,pv_service_mode==2?1000:65534));PV_STEP(10,setresuid(pv_service_mode==2?1000:65534,pv_service_mode==2?1000:65534,pv_service_mode==2?1000:65534));
+    PV_STEP(10,prctl(PR_CAP_AMBIENT,PR_CAP_AMBIENT_CLEAR_ALL,0,0,0));PV_STEP(10,setgroups(0,NULL));PV_STEP(10,setresgid(pv_service_mode>=2?1000:65534,pv_service_mode>=2?1000:65534,pv_service_mode>=2?1000:65534));PV_STEP(10,setresuid(pv_service_mode>=2?1000:65534,pv_service_mode>=2?1000:65534,pv_service_mode>=2?1000:65534));
     struct __user_cap_header_struct caph={.version=_LINUX_CAPABILITY_VERSION_3,.pid=0};struct __user_cap_data_struct capd[2]={{0}};PV_STEP(10,(int)syscall(SYS_capset,&caph,capd));
-    r.uid=getuid();r.gid=getgid();r.caps_zero=pv_zero_caps();if(r.uid!=(pv_service_mode==2?1000:65534)||r.gid!=(pv_service_mode==2?1000:65534)||!r.caps_zero){r.error=EPERM;goto failed;}
+    r.uid=getuid();r.gid=getgid();r.caps_zero=pv_zero_caps();if(r.uid!=(pv_service_mode>=2?1000:65534)||r.gid!=(pv_service_mode>=2?1000:65534)||!r.caps_zero){r.error=EPERM;goto failed;}
     /* UID changes clear PDEATHSIG. Re-arm, then check inherited owner pidfd. */
     PV_STEP(10,prctl(PR_SET_PDEATHSIG,SIGKILL));if(pd_wait_pidfd(owner_fd,0)!=ETIMEDOUT){r.error=ECHILD;goto failed;}
-    if(pv_service_mode==2){
-        const char domain[]="u:r:servicemanager:s0";r.stage=16;
+    if(pv_service_mode>=2){
+        const char *domain=pv_kind()->domain;r.stage=16;
         /* Preserve owned loop/FS evidence even if the domain cannot use the setup pipe. */
         ssize_t interim=write(metadata,&r,sizeof(r));if(interim!=(ssize_t)sizeof(r))_exit(42);
-        ssize_t count=write(context_fd,domain,sizeof(domain)-1);if(count!=(ssize_t)sizeof(domain)-1){r.error=count<0?errno:EPROTO;goto failed;}close(context_fd);context_fd=-1;
+        ssize_t count=write(context_fd,domain,strlen(domain));if(count!=(ssize_t)strlen(domain)){r.error=count<0?errno:EPROTO;goto failed;}close(context_fd);context_fd=-1;
         char current[128];PV_CHECK(16,read_text("/proc/self/attr/exec",current,sizeof(current)));current[strcspn(current,"\n")]=0;
         if(strcmp(current,domain)||!pv_zero_caps()){r.error=EPERM;goto failed;}r.sm.context_verified=1;
         PV_STEP(16,prctl(PR_SET_PDEATHSIG,SIGKILL));if(pd_wait_pidfd(owner_fd,0)!=ETIMEDOUT){r.error=ECHILD;goto failed;}
@@ -186,7 +190,7 @@ static void pv_worker(int image,int metadata,int output,int owner_fd,const char 
     int meta_copy=fcntl(metadata,F_DUPFD_CLOEXEC,3);PV_STEP(11,meta_copy);if(meta_copy!=3){PV_STEP(11,dup3(meta_copy,3,O_CLOEXEC));close(meta_copy);}metadata=3;
     PV_STEP(11,(int)syscall(SYS_close_range,4U,UINT_MAX,0U));
     PV_STEP(12,prctl(PR_SET_NO_NEW_PRIVS,1,0,0,0));r.nnp=prctl(PR_GET_NO_NEW_PRIVS,0,0,0,0);if(r.nnp!=1){r.error=EPROTO;goto failed;}
-    PV_STEP(12,pv_service_mode==2?sm_install_policy():pv_install_filter());PV_STEP(12,pv_test_filter());r.filter_verified=5;r.prepared=1;r.stage=13;
+    PV_STEP(12,pv_service_mode>=2?sm_install_policy():pv_install_filter());PV_STEP(12,pv_test_filter());r.filter_verified=5;r.prepared=1;r.stage=13;
     /* This fixed record is from trusted setup. FD3 closes on exec, so guest
        stdout cannot forge privileged setup metadata. No arbitrary shell input. */
     if(write(metadata,&r,sizeof(r))!=(ssize_t)sizeof(r))_exit(42);
@@ -216,9 +220,9 @@ static int pv_run(int image,struct pv_result *r){
         struct pollfd fds[]={{metadata[0],POLLIN,0},{output[0],POLLIN,0},{task,POLLIN,0}};int rc=poll(fds,3,100);if(rc<0&&errno!=EINTR){r->error=errno;break;}
         if(fds[0].revents&POLLIN){ssize_t n=read(metadata[0],&r->child,sizeof(r->child));if(n!=(ssize_t)sizeof(r->child)){r->error=EPROTO;break;}r->metadata_received=1;}
         if(fds[1].revents&POLLIN){char b[1024];ssize_t n=read(output[0],b,sizeof(b));if(n>0){size_t copy=(size_t)n;if(copy>sizeof(r->output)-1-used)copy=sizeof(r->output)-1-used;memcpy(r->output+used,b,copy);used+=copy;r->output[used]=0;}}
-        if(pv_service_mode==2&&r->metadata_received&&r->child.prepared&&!(fds[2].revents&POLLIN)){
-            int threads=0;int identity=sm_check_process(child,&r->child.sm,&threads);if(threads>r->thread_peak)r->thread_peak=threads;if(identity==E2BIG){r->error=E2BIG;break;}
-            if(!identity){r->ping_errno=sm_ping_process(child,&r->child.sm);if(!r->ping_errno){int after=sm_check_process(child,&r->child.sm,&threads);if(threads>r->thread_peak)r->thread_peak=threads;if(after==E2BIG){r->error=E2BIG;break;}if(!after){r->identity_verified=r->ping_passed=r->owned_stop=1;break;}}}
+        if(pv_service_mode>=2&&r->metadata_received&&r->child.prepared&&!(fds[2].revents&POLLIN)){
+            int threads=0;int identity=sm_check_process(child,&r->child.sm,&threads,pv_kind());if(threads>r->thread_peak)r->thread_peak=threads;if(identity==E2BIG){r->error=E2BIG;break;}
+            if(!identity){r->ping_errno=sm_ping_process(child,&r->child.sm,pv_kind());if(!r->ping_errno){int after=sm_check_process(child,&r->child.sm,&threads,pv_kind());if(threads>r->thread_peak)r->thread_peak=threads;if(after==E2BIG){r->error=E2BIG;break;}if(!after){r->identity_verified=r->ping_passed=r->owned_stop=1;break;}}}
             else r->ping_errno=identity;
         }
         exited=fds[2].revents&POLLIN;clock_gettime(CLOCK_MONOTONIC,&now);if(now.tv_sec-start.tv_sec>=20){r->error=ETIMEDOUT;break;}
@@ -238,9 +242,9 @@ done:
     if(changed_chld&&sigaction(SIGCHLD,&old_chld,NULL))r->cleanup_error=errno;
     if(rmdir(temp))r->cleanup_error=errno;else r->temp_removed=1;
     r->parent_unchanged=pv_parent_same(&mnt,&net,&root);
-    if(pv_service_mode==2){
+    if(pv_service_mode>=2){
         char enforcing[16];r->host_enforcing=!read_text("/sys/fs/selinux/enforce",enforcing,sizeof(enforcing))&&enforcing[0]=='1';
-        if(!r->error&&(!r->metadata_received||r->child.error||!r->child.prepared||!r->child.linkerconfig_readonly||!r->child.sm.binder_verified||!r->child.sm.selinux_verified||!r->child.sm.context_verified||!r->child.sm.entry_verified||!r->child.sm.self_proc_only||!r->child.sm.helper_verified||!r->identity_verified||!r->ping_passed||!r->owned_stop||!r->reaped||r->signal!=SIGKILL||!r->host_enforcing||!strstr(r->output,"PD2425_SM_ENV_OK\n")))r->error=r->child.error?r->child.error:EPROTO;
+        if(!r->error&&(!r->metadata_received||r->child.error||!r->child.prepared||!r->child.linkerconfig_readonly||!r->child.sm.binder_verified||!r->child.sm.selinux_verified||!r->child.sm.context_verified||!r->child.sm.entry_verified||!r->child.sm.self_proc_only||!r->child.sm.helper_verified||!r->identity_verified||!r->ping_passed||!r->owned_stop||!r->reaped||r->signal!=SIGKILL||!r->host_enforcing||!strstr(r->output,pv_kind()->marker)))r->error=r->child.error?r->child.error:EPROTO;
         for(int n=0;n<3;n++)if(r->child.sm.host_present[n]){char path[32];struct stat node;snprintf(path,sizeof(path),"/dev/%s",pd_binder_names[n]);if(stat(path,&node)||(uint64_t)node.st_dev!=r->child.sm.host_dev[n]||(uint64_t)node.st_ino!=r->child.sm.host_ino[n]||(uint64_t)node.st_rdev!=r->child.sm.host_rdev[n])r->cleanup_error=EXDEV;}
     }else if(!r->error&&(!r->metadata_received||r->child.error||!r->child.prepared||r->exit_code||r->signal||!(pv_service_mode?(r->child.linkerconfig_readonly&&strstr(r->output,"libbinder.so")&&strstr(r->output,"libc.so")):(strstr(r->output,"PD2425_GSI_SHELL_OK\n")!=NULL))))r->error=r->child.error?r->child.error:EPROTO;
     if(!r->parent_unchanged||!r->loops_released||!r->temp_removed)r->cleanup_error=r->cleanup_error?r->cleanup_error:EPROTO;
@@ -257,7 +261,7 @@ static int pv_main(const char *path){
     r.stage="temperature";int temperature=0;if(read_text("/sys/class/power_supply/battery/temp",value,sizeof(value))||sscanf(value,"%d",&temperature)!=1||temperature< -200||temperature>380){r.error=ERANGE;goto report;}
     r.stage="image_open";image=open(path,O_RDONLY|O_CLOEXEC|O_NOFOLLOW);if(image<0){r.error=errno;goto report;}
     r.stage="image_sha256";puts("PREVIEW_STAGE=image_sha256");fflush(stdout);r.error=pv_exact_file(image,PV_IMAGE_BYTES,PV_IMAGE_SHA,r.digest);if(r.error)goto report;r.error=pv_ext4(image,0);if(r.error)goto report;
-    if(pv_service_mode==2){
+    if(pv_service_mode>=2){
         r.stage="packaged_helper";if(strlen(PD_SM_CHECK_SHA)!=64||!PD_SM_CHECK_BYTES){r.error=ENOTSUP;goto report;}
         char executable[4096];ssize_t length=readlink("/proc/self/exe",executable,sizeof(executable)-1);if(length<=0||length>=(ssize_t)sizeof(executable)-1){r.error=ENOENT;goto report;}executable[length]=0;
         char *last=strrchr(executable,'/');if(!last){r.error=EINVAL;goto report;}*last=0;int directory=open(executable,O_RDONLY|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW);if(directory<0){r.error=errno;goto report;}
@@ -268,27 +272,30 @@ static int pv_main(const char *path){
 report:
     if(image>=0)close(image);
     if(pv_helper_fd>=0){close(pv_helper_fd);pv_helper_fd=-1;}
-    printf("{\"schema\":1,\"component\":\"%s\",\"runtime_ready\":false,\"guest_boot_complete\":false,\"host_services_changed\":false,\"uid\":",pv_service_mode==2?"service-smoke-preview":pv_service_mode?"service-loader-preview":"gsi-preview");printf("%lu,\"preview_passed\":%s,\"fingerprint\":",(unsigned long)getuid(),rc==0?"true":"false");json_string(fp);
+    printf("{\"schema\":1,\"component\":\"%s\",\"runtime_ready\":false,\"guest_boot_complete\":false,\"host_services_changed\":false,\"uid\":",pv_service_mode>=2?(pv_service_mode==3?"hwservice-smoke-preview":"service-smoke-preview"):pv_service_mode?"service-loader-preview":"gsi-preview");printf("%lu,\"preview_passed\":%s,\"fingerprint\":",(unsigned long)getuid(),rc==0?"true":"false");json_string(fp);
     fputs(",\"boot_id\":",stdout);json_file("/proc/sys/kernel/random/boot_id");fputs(",\"image_sha256\":",stdout);json_string(r.digest);fputs(",\"stage\":",stdout);json_string(r.stage);
     int stage=r.child.stage>=0&&r.child.stage<(int)(sizeof(pv_stages)/sizeof(pv_stages[0]))?r.child.stage:0;fputs(",\"child_stage\":",stdout);json_string(pv_stages[stage]);
     printf(",\"errno\":%d,\"child_errno\":%d,\"cleanup_errno\":%d,\"spawned\":%d,\"reaped\":%d,\"exit_code\":%d,\"signal\":%d,\"prepared\":%s,\"guest_uid\":%d,\"guest_gid\":%d,\"capabilities_zero\":%s,\"no_new_privs\":%d,\"filter_verified\":%d,\"namespaces_private\":%s,\"metadata_received\":%s,\"parent_unchanged\":%s,\"loops_released\":%s,\"temporary_directory_removed\":%s,\"output\":",r.error,r.child.error,r.cleanup_error,r.spawned,r.reaped,r.exit_code,r.signal,r.child.prepared?"true":"false",r.child.uid,r.child.gid,r.child.caps_zero?"true":"false",r.child.nnp,r.child.filter_verified,r.child.namespaces_private?"true":"false",r.metadata_received?"true":"false",r.parent_unchanged?"true":"false",r.loops_released?"true":"false",r.temp_removed?"true":"false");json_string(r.output);
     printf(",\"loop_control_errno\":%d,\"loop_node_errno\":%d,\"loop_candidates\":%d",r.child.loop_control_errno,r.child.loop_node_errno,r.child.loop_candidates);
     printf(",\"loop_preferred\":%d,\"loop_probe_number\":%d,\"loop_actual_major\":%d,\"loop_actual_minor\":%d,\"loop_expected_major\":%d,\"loop_expected_minor\":%d,\"loop_operation\":",r.child.loop_preferred,r.child.loop_probe_number,r.child.loop_actual_major,r.child.loop_actual_minor,r.child.loop_expected_major,r.child.loop_expected_minor);
     json_string(r.child.loop_operation>=0&&r.child.loop_operation<(int)(sizeof(pv_loop_operations)/sizeof(pv_loop_operations[0]))?pv_loop_operations[r.child.loop_operation]:"invalid");
-    printf(",\"service_main_executed\":%s,\"linkerconfig_readonly\":%s,\"target\":",pv_service_mode==2?(r.ping_passed?"true":"null"):"false",r.child.linkerconfig_readonly?"true":"false");json_string(pv_service_mode?"/system/bin/servicemanager":"/system/bin/sh");
-    char config_hash[65];struct pv_sha config_sha;pv_sha_init(&config_sha);pv_sha_update(&config_sha,pv_service_mode==2?pv_smoke_config:pv_bootstrap_config,pv_service_mode==2?sizeof(pv_smoke_config)-1:sizeof(pv_bootstrap_config)-1);pv_sha_final(&config_sha,config_hash);
+    printf(",\"service_main_executed\":%s,\"linkerconfig_readonly\":%s,\"target\":",pv_service_mode>=2?(r.ping_passed?"true":"null"):"false",r.child.linkerconfig_readonly?"true":"false");json_string(pv_service_mode?pv_kind()->path:"/system/bin/sh");
+    char config_hash[65];struct pv_sha config_sha;pv_sha_init(&config_sha);pv_sha_update(&config_sha,pv_config(),pv_config_bytes());pv_sha_final(&config_sha,config_hash);
     fputs(",\"bootstrap_linkerconfig_sha256\":",stdout);json_string(pv_service_mode?config_hash:"");
-    printf(",\"binder_private\":%s,\"selinux_view_verified\":%s,\"self_proc_only\":%s,\"packaged_helper_verified\":%s,\"service_domain_verified\":%s,\"process_identity_verified\":%s,\"context_manager_ping_passed\":%s,\"owned_stop\":%s,\"host_enforcing_preserved\":%s,\"ping_errno\":%d",r.child.sm.binder_verified?"true":"false",r.child.sm.selinux_verified?"true":"false",r.child.sm.self_proc_only?"true":"false",r.child.sm.helper_verified?"true":"false",(pv_service_mode==2?r.identity_verified:r.child.sm.context_verified)?"true":"false",r.identity_verified?"true":"false",r.ping_passed?"true":"false",r.owned_stop?"true":"false",r.host_enforcing?"true":"false",r.ping_errno);
+    printf(",\"binder_private\":%s,\"selinux_view_verified\":%s,\"self_proc_only\":%s,\"packaged_helper_verified\":%s,\"service_domain_verified\":%s,\"process_identity_verified\":%s,\"context_manager_ping_passed\":%s,\"owned_stop\":%s,\"host_enforcing_preserved\":%s,\"ping_errno\":%d",r.child.sm.binder_verified?"true":"false",r.child.sm.selinux_verified?"true":"false",r.child.sm.self_proc_only?"true":"false",r.child.sm.helper_verified?"true":"false",(pv_service_mode>=2?r.identity_verified:r.child.sm.context_verified)?"true":"false",r.identity_verified?"true":"false",r.ping_passed?"true":"false",r.owned_stop?"true":"false",r.host_enforcing?"true":"false",r.ping_errno);
     printf(",\"entry_adapted\":%s,\"exec_context_requested\":%s",r.child.sm.entry_verified?"true":"false",r.child.sm.context_verified?"true":"false");
-    fputs(",\"service_entry_sha256\":",stdout);json_string(pv_service_mode==2?SM_ENTRY_PATCHED_SHA:"");
+    fputs(",\"service_entry_sha256\":",stdout);json_string(pv_service_mode>=2?(pv_service_mode==3?HW_ENTRY_PATCHED_SHA:SM_ENTRY_PATCHED_SHA):"");
+    fputs(",\"ping_method\":",stdout);json_string(pv_service_mode==3?"HIDL IBase.ping":"Binder PING_TRANSACTION");
     sm_json_exec(&r.child.exec);
-    printf(",\"thread_limit\":%d,\"observed_thread_peak\":%d,\"pthread_clone_flags\":%u",pv_service_mode==2?SM_MAX_THREADS:0,r.thread_peak,pv_service_mode==2?(unsigned)SM_THREAD_FLAGS:0);
+    printf(",\"thread_limit\":%d,\"observed_thread_peak\":%d,\"pthread_clone_flags\":%u",pv_service_mode>=2?SM_MAX_THREADS:0,r.thread_peak,pv_service_mode>=2?(unsigned)SM_THREAD_FLAGS:0);
+    fputs(",\"binder_driver\":",stdout);json_string(pv_service_mode>=2?pv_kind()->driver:"");fputs(",\"service_domain\":",stdout);json_string(pv_service_mode>=2?pv_kind()->domain:"");
     int fs_stage=r.child.sm.stage>=0&&r.child.sm.stage<(int)(sizeof(sm_fs_stages)/sizeof(sm_fs_stages[0]))?r.child.sm.stage:0;
     fputs(",\"service_filesystem_stage\":",stdout);json_string(sm_fs_stages[fs_stage]);
-    fputs(",\"packaged_helper_sha256\":",stdout);json_string(pv_service_mode==2?PD_SM_CHECK_SHA:"");
-    fputs(",\"scope\":\"Pinned upstream shell, loader or bounded private servicemanager. Capless UID65534 for loader/shell; UID1000 and real servicemanager domain for smoke. Private Binder, readonly policy except access/context queries, own proc attr only. Default-deny, no fork/network/host services/HAL/framework or partition writes.\"}\n",stdout);return rc;
+    fputs(",\"packaged_helper_sha256\":",stdout);json_string(pv_service_mode>=2?PD_SM_CHECK_SHA:"");
+    fputs(",\"scope\":\"Pinned upstream shell, loader or bounded private service manager. Capless UID65534 for loader/shell; UID1000 and the selected real service-manager domain for smoke. Private Binder, readonly policy except access/context queries, own proc attr only. Default-deny, no fork/network/host services/HAL/framework or partition writes.\"}\n",stdout);return rc;
 }
 int main(int argc,char **argv){
+    if(argc==3&&!strcmp(argv[1],"--smoke-hwservicemanager")){pv_service_mode=3;return pv_main(argv[2]);}
     if(argc==3&&!strcmp(argv[1],"--smoke-servicemanager")){pv_service_mode=2;return pv_main(argv[2]);}
     if(argc==3&&!strcmp(argv[1],"--preview-service-loader")){pv_service_mode=1;return pv_main(argv[2]);}
     if(argc==3&&!strcmp(argv[1],"--preview-gsi"))return pv_main(argv[2]);

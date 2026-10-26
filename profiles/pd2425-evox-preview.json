@@ -44,7 +44,7 @@
     "full_android_boot": false
   },
   "service_smoke_preview": {
-    "state": "implemented-device-unvalidated",
+    "state": "owner-device-service-passed",
     "target": "/system/bin/servicemanager",
     "mode": "native ELF exec; bounded private Binder context manager",
     "guest_uid": 1000,
@@ -61,5 +61,26 @@
     "thread_limit": 8,
     "thread_limit_kind": "supervisor-observed, not a hard kernel thread quota",
     "clone3": "denied with ENOSYS; libc may fall back to checked clone"
+  },
+  "hwservice_smoke_preview": {
+    "state": "implemented-device-unvalidated",
+    "target": "/system/system_ext/bin/hwservicemanager",
+    "mode": "native ELF exec; bounded private Binder context manager",
+    "guest_uid": 1000,
+    "guest_gid": 1000,
+    "selinux_domain": "u:r:hwservicemanager:s0",
+    "bootstrap_linkerconfig_sha256": "5e9804994135666deba7eb9df553e20c419831f3829b5d0d2af25b3606d1b17a",
+    "requires_enforcing_raw_decision": true,
+    "host_services_changed": false,
+    "full_android_boot": false,
+    "entry_metadata": "profiles/pd2425-hwservicemanager-entry.json",
+    "entry_sha256": "bcac519455983e6062fe91ee3e685090499ab54b5b000dc08d2e4f16f9c7b9f8",
+    "service_context": "u:object_r:hidl_manager_hwservice:s0",
+    "pthread_clone_flags": "0x003d0f00",
+    "thread_limit": 8,
+    "thread_limit_kind": "supervisor-observed, not a hard kernel thread quota",
+    "clone3": "denied with ENOSYS; libc may fall back to checked clone",
+    "binder_driver": "hwbinder",
+    "ping_method": "HIDL IBase.ping"
   }
 }

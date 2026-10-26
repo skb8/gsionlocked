@@ -195,3 +195,18 @@ limits and kills/reaps the owned whole thread group via pidfd. Real CI pthread
 create/join, inherited denials and live-thread group-kill tests are included.
 The owner report confirms ELF/guard success but a pthread EPERM in 0.1.19; this
 change still needs Android validation and never authorizes full boot/handoff.
+
+
+Owner report 0.1.20 confirms real servicemanager domain/ELF/Enforcing, private
+Binder reply, two threads and complete cleanup. 0.1.21 adds a distinct bounded
+hwservicemanager test using its pinned system_ext ELF, native bootstrap entry,
+mandatory guard, actual hwservicemanager SID and private hwbinder label/device.
+The supervisor sends fixed HIDL IBase.ping (256921159, CString interface token),
+and requires a four-byte EX_NONE reply, no objects/status-code error or foreign
+pointers. Framework Binder proof cannot substitute for this test. Closed kind
+profiles choose exact target/domain/driver/hash/policy class; arbitrary inputs
+remain impossible. Both private metadata transforms have native C/Python byte
+identity and unchanged code/interpreter tests. Both real policy guard branches
+are unit-tested. Vendor manifests/properties/HAL are not spoofed or exposed;
+VINTF/property completeness may block the device test. No host policy/service or
+hardware change. The Russian guide contains the new button and report fields.

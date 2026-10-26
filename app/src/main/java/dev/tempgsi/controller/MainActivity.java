@@ -110,6 +110,15 @@ public final class MainActivity extends Activity {
                     return "Тест сервиса завершён. Сохраните root-отчёт. Android framework и HAL не запускались.";
                 });
             }));
+            buttons.add(Ui.button(page,"Приватный hwservicemanager — короткий запуск",true,()->{
+                if(busy)return;
+                if(inside){status.setText("Запускайте тест из OriginOS.");return;}
+                pd2425Report=null;
+                task("Запуск hwservicemanager с отдельным hwbinder и проверкой Enforcing…",()->{
+                    pd2425Report=Pd2425Diagnostics.collectHwServiceSmoke(this,selectedSha);
+                    return "Тест hwservicemanager завершён. Сохраните root-отчёт. HAL и Android framework не запускались.";
+                });
+            }));
             buttons.add(Ui.button(page,"Root-отчёт PD2425",false,()->{
                 if(busy)return;
                 if(inside){status.setText("Собирайте отчёт в OriginOS.");return;}
