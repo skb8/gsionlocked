@@ -78,6 +78,19 @@ static size_t sm_build_policy(struct sock_filter *out,size_t capacity){
         SM_ALLOWED(BINDER_GET_EXTENDED_ERROR),
 #endif
         BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|EPERM),
+        /* Unix stream clients stay within the private network namespace/chroot.
+           No internet, datagram, raw or socketpair endpoints. */
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SYS_socket,0,8),
+        BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,args[0])),
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,AF_UNIX,0,5),
+        BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,args[1])),
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,SOCK_STREAM|SOCK_CLOEXEC,0,3),
+        BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,args[2])),
+        BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,0,0,1),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ALLOW),BPF_STMT(BPF_RET|BPF_K,SECCOMP_RET_ERRNO|EPERM),
+        BPF_STMT(BPF_LD|BPF_W|BPF_ABS,offsetof(struct seccomp_data,nr)),
+        SM_ALLOWED(SYS_connect),SM_ALLOWED(SYS_sendto),SM_ALLOWED(SYS_recvfrom),
+        /* Legacy getrlimit reads self only; setters stay denied. */
+        SM_ALLOWED(SYS_getrlimit),
         SM_ALLOWED(SYS_statfs),SM_ALLOWED(SYS_epoll_create1),SM_ALLOWED(SYS_epoll_ctl),SM_ALLOWED(SYS_epoll_pwait),
         SM_ALLOWED(SYS_eventfd2),SM_ALLOWED(SYS_timerfd_create),SM_ALLOWED(SYS_timerfd_settime),SM_ALLOWED(SYS_timerfd_gettime),SM_ALLOWED(SYS_ppoll),SM_ALLOWED(SYS_pselect6),
 #ifdef SYS_epoll_wait

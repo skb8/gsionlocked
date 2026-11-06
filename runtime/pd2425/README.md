@@ -223,3 +223,17 @@ requests and natural exit observation are recorded, and wait4 reports CPU/RSS.
 The existing 5s CPU/20s wall bounds remain. CPU-limit attribution is explicitly
 suspected, not proven. Prior owner report confirms HW guard success/cleanup but
 no HIDL response; the proc fix and additional diagnostics require device testing.
+
+
+0.1.23 was exercised through ADB on PD2425: ordinary servicemanager and
+hwservicemanager both answer their real Binder/HIDL ping with cleanup errno 0
+and host Enforcing preserved. The HW service needed a genuine private Bionic
+property area and a property-service v2 endpoint. Its old no-area WaitForProperty
+loop exhausted the CPU bound. The new endpoint accepts only the owned UID1000
+PID's hwservicemanager.ready=true request after Binder registration. It uses a
+copy of host property_info (metadata only), no host property values or socket.
+The capless init-domain server has its own default-deny filter, 20s alarm,
+parent-death SIGKILL and supervisor pidfd stop/reap. Guest UNIX stream sockets
+remain within its existing private network namespace/chroot. Also expose a
+read-only entropy-device bind and self-only legacy getrlimit. Full Android,
+APEX/ART, HAL handoff, display and touch are still unimplemented on PD2425.

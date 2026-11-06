@@ -24,12 +24,24 @@ static void *thread_probe(void *arg){
 }
 struct held_thread {int ready,hold;pid_t tgid;};
 static void *thread_hold(void *arg){struct held_thread *state=arg;assert(getpid()==state->tgid&&syscall(SYS_gettid)!=state->tgid&&!pv_test_filter());assert(write(state->ready,"T",1)==1);char value;ssize_t ignored=read(state->hold,&value,1);(void)ignored;return NULL;}
-int main(void){
+static void property_string_cases(void){
+ int fds[2];char value[96];uint32_t size=4;assert(!pipe(fds));assert(write(fds[1],&size,4)==4&&write(fds[1],"true",4)==4);close(fds[1]);assert(!pp_string(fds[0],value,sizeof(value))&&!strcmp(value,"true"));close(fds[0]);
+ assert(!pipe(fds));size=96;assert(write(fds[1],&size,4)==4);close(fds[1]);assert(pp_string(fds[0],value,sizeof(value))==-1);close(fds[0]);
+ assert(!pipe(fds));size=4;assert(write(fds[1],&size,4)==4&&write(fds[1],"bad",3)==3);close(fds[1]);assert(pp_string(fds[0],value,sizeof(value))==-1);close(fds[0]);
+ assert(!pipe(fds));size=4;assert(write(fds[1],&size,4)==4&&write(fds[1],"a\0bc",4)==4);close(fds[1]);assert(pp_string(fds[0],value,sizeof(value))==-1);close(fds[0]);
+}
+int main(void){property_string_cases();
  struct sock_filter filter[512];assert(!sm_build_policy(filter,1)&&errno==E2BIG);size_t count=sm_build_policy(filter,512);assert(count>0);
  uint64_t args[6]={0};uint32_t deny=SECCOMP_RET_ERRNO|EPERM;
  assert(evaluate(filter,count,PD_GUARD_ARCH^1,SYS_write,args)==SECCOMP_RET_KILL_PROCESS);
  unsigned calls[]={SYS_clone,SYS_fork,SYS_vfork,SYS_socket,SYS_socketpair,SYS_kill,SYS_tgkill,SYS_ptrace,SYS_process_vm_writev,SYS_pidfd_getfd,SYS_bpf,SYS_perf_event_open,SYS_mount,SYS_umount2,SYS_setns,SYS_unshare,SYS_capset,SYS_setresuid,SYS_reboot,SYS_seccomp,SYS_open_by_handle_at};
  for(unsigned n=0;n<sizeof(calls)/sizeof(calls[0]);n++)assert(evaluate(filter,count,PD_GUARD_ARCH,calls[n],args)==deny);
+ args[0]=AF_UNIX;args[1]=SOCK_STREAM|SOCK_CLOEXEC;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_socket,args)==SECCOMP_RET_ALLOW);
+ args[0]=AF_INET;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_socket,args)==deny);
+ args[0]=AF_UNIX;args[1]=SOCK_DGRAM|SOCK_CLOEXEC;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_socket,args)==deny);
+ args[1]=SOCK_STREAM|SOCK_CLOEXEC;args[2]=1;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_socket,args)==deny);
+ memset(args,0,sizeof(args));assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_getrlimit,args)==SECCOMP_RET_ALLOW);
+ assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_setrlimit,args)==deny);
  args[0]=SM_THREAD_FLAGS;assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_clone,args)==SECCOMP_RET_ALLOW);
  for(unsigned bit=0;bit<64;bit++){args[0]=(uint64_t)SM_THREAD_FLAGS^(1ULL<<bit);assert(evaluate(filter,count,PD_GUARD_ARCH,SYS_clone,args)==deny);}
 #ifdef SYS_clone3

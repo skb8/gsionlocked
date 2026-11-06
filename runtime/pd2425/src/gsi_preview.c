@@ -16,8 +16,10 @@
 #include "preview_policy.h"
 #include "preview_linkerconfig.h"
 #include "service_kind.h"
+#include <sys/socket.h>
 #include "service_fs.h"
 #include "service_exec_diag.h"
+#include "private_properties.h"
 #include "service_client.h"
 #include "service_policy.h"
 #ifndef PD_SM_CHECK_SHA
@@ -29,7 +31,7 @@ static int pv_service_mode;
 static const struct sm_kind *pv_kind(void){return pv_service_mode==3?&hw_service_kind:&sm_service_kind;}
 static const char *pv_config(void){return pv_service_mode==3?pv_hw_config:pv_service_mode>=2?pv_smoke_config:pv_bootstrap_config;}
 static size_t pv_config_bytes(void){return pv_service_mode==3?sizeof(pv_hw_config)-1:pv_service_mode>=2?sizeof(pv_smoke_config)-1:sizeof(pv_bootstrap_config)-1;}
-struct pv_record {struct sm_exec_observation exec;struct sm_environment sm;int linkerconfig_readonly,prepared,error,stage,uid,gid,caps_zero,nnp,filter_verified,namespaces_private,loop_count,loops[2],loop_control_errno,loop_node_errno,loop_candidates,loop_preferred,loop_probe_number,loop_operation,loop_actual_major,loop_actual_minor,loop_expected_major,loop_expected_minor;};
+struct pv_record {int property_server;struct sm_exec_observation exec;struct sm_environment sm;int linkerconfig_readonly,prepared,error,stage,uid,gid,caps_zero,nnp,filter_verified,namespaces_private,loop_count,loops[2],loop_control_errno,loop_node_errno,loop_candidates,loop_preferred,loop_probe_number,loop_operation,loop_actual_major,loop_actual_minor,loop_expected_major,loop_expected_minor;};
 enum {PV_OUTPUT_HEAD=6144,PV_OUTPUT_TAIL=2048};
 struct pv_result {int identity_phase,identity_errno,identity_ever,ping_phase,ping_attempts,exit_observed,stop_requested,stop_errno,usage_available;uint64_t wall_ms,user_ms,system_ms,max_rss_kb,output_total;size_t head_used,tail_used;char output_tail[PV_OUTPUT_TAIL+1];int thread_peak;int ping_passed,identity_verified,owned_stop,host_enforcing, ping_errno;int error,cleanup_error,spawned,reaped,exit_code,signal,metadata_received,parent_unchanged,loops_released,temp_removed;const char *stage;char digest[65],output[8193];struct pv_record child;};
 static void pv_capture_output(struct pv_result *r,const char *bytes,size_t count){
@@ -173,7 +175,9 @@ static void pv_worker(int image,int metadata,int output,int owner_fd,const char 
     close(linker);close(shell);
     /* Root/runtime remain immutable. Smoke adds private tmpfs, own proc attrs
        and a real readonly SELinux view with two query-only RW aliases. */
+    int host_proc=-1;if(pv_service_mode==3){PV_STEP(9,host_proc=open("/proc",O_RDONLY|O_DIRECTORY|O_CLOEXEC));int private_dev=sm_directory(root,"dev");PV_STEP(9,private_dev);PV_STEP(9,pp_copy_info(private_dev));close(private_dev);}
     PV_STEP(9,fchdir(root));PV_STEP(9,chroot("."));PV_STEP(9,chdir("/"));
+    if(pv_service_mode==3){PV_STEP(9,r.property_server=pp_start(output,host_proc));close(host_proc);ssize_t sent=write(metadata,&r,sizeof(r));if(sent!=(ssize_t)sizeof(r))_exit(42);}
     PV_STEP(10,pv_limit(RLIMIT_CORE,0));PV_STEP(10,pv_limit(RLIMIT_CPU,5));/* Android Scudo reserves several GiB of VA without committing that RAM.
        A tiny AS limit breaks libc before main. Fork is denied by seccomp;
        NPROC=0 would also make exec fail after the UID transition. */
@@ -240,10 +244,13 @@ static int pv_run(int image,struct pv_result *r){
     for(int records=0;records<2;records++){ssize_t n=read(metadata[0],&r->child,sizeof(r->child));if(n==(ssize_t)sizeof(r->child))r->metadata_received=1;else break;}
 done:
     if(timer_started&&!clock_gettime(CLOCK_MONOTONIC,&now)){int64_t elapsed=(int64_t)(now.tv_sec-start.tv_sec)*1000+(now.tv_nsec-start.tv_nsec)/1000000;r->wall_ms=elapsed>0?(uint64_t)elapsed:0;}
-    /* Trusted setup creates one process. Smoke permits exact pthread clones
+    /* Trusted setup creates the guest and, for HW smoke, a bounded capless
+       private property server. Both are direct children, stopped and reaped.
+       Smoke permits exact pthread clones
        in its TGID only; pidfd SIGKILL terminates that entire thread group.
        Never signal a process outside this unreaped owned PID. */
     if(child>1){if(!r->exit_observed){r->stop_requested=1;int stopped=task>=0?(int)syscall(SYS_pidfd_send_signal,task,SIGKILL,NULL,0):kill(child,SIGKILL);if(stopped)r->stop_errno=errno;}int status=0;struct rusage usage={0};pid_t n=0;for(int t=0;t<100;t++){n=wait4(child,&status,WNOHANG,&usage);if(n==child||(n<0&&errno!=EINTR))break;usleep(50000);}if(n==child){r->usage_available=1;r->user_ms=(uint64_t)usage.ru_utime.tv_sec*1000+usage.ru_utime.tv_usec/1000;r->system_ms=(uint64_t)usage.ru_stime.tv_sec*1000+usage.ru_stime.tv_usec/1000;r->max_rss_kb=usage.ru_maxrss>0?(uint64_t)usage.ru_maxrss:0;r->reaped=1;r->exit_code=WIFEXITED(status)?WEXITSTATUS(status):-1;r->signal=WIFSIGNALED(status)?WTERMSIG(status):0;}else r->cleanup_error=n==0?ETIMEDOUT:errno;}
+    if(r->child.property_server>1){int status=0;pid_t server=r->child.property_server;int fd=(int)syscall(SYS_pidfd_open,server,0);if(fd<0)r->cleanup_error=errno;else{if(syscall(SYS_pidfd_send_signal,fd,SIGKILL,NULL,0)&&errno!=ESRCH)r->cleanup_error=errno;int waited=pd_wait_pidfd(fd,2000);if(waited)r->cleanup_error=waited;else if(waitpid(server,&status,0)!=server)r->cleanup_error=errno;close(fd);}}
     for(int n=0;n<2;n++){if(metadata[n]>=0)close(metadata[n]);if(output[n]>=0)close(output[n]);}if(task>=0)close(task);if(owner>=0)close(owner);
     r->loops_released=1;
     if(r->spawned&&!r->metadata_received)r->loops_released=0;
@@ -305,7 +312,8 @@ report:
     int fs_stage=r.child.sm.stage>=0&&r.child.sm.stage<(int)(sizeof(sm_fs_stages)/sizeof(sm_fs_stages[0]))?r.child.sm.stage:0;
     fputs(",\"service_filesystem_stage\":",stdout);json_string(sm_fs_stages[fs_stage]);
     fputs(",\"packaged_helper_sha256\":",stdout);json_string(pv_service_mode>=2?PD_SM_CHECK_SHA:"");
-    fputs(",\"scope\":\"Pinned upstream shell, loader or bounded private service manager. Capless UID65534 for loader/shell; UID1000 and the selected real service-manager domain for smoke. Private Binder, readonly policy except access/context queries, own proc attr only. Default-deny, no fork/network/host services/HAL/framework or partition writes.\"}\n",stdout);return rc;
+    printf(",\"private_property_server\":%s",r.child.property_server>1?"true":"false");
+    fputs(",\"scope\":\"Pinned upstream shell, loader or bounded private service manager. Capless UID65534 for loader/shell; UID1000 and the selected real service-manager domain for smoke. Private Binder, readonly policy except access/context queries, own proc attr only. Default-deny guest: no fork/internet/host services/HAL/framework or partition writes. HW smoke adds a bounded private property server; UNIX streams stay in the private network namespace and chroot.\"}\n",stdout);return rc;
 }
 int main(int argc,char **argv){
     if(argc==3&&!strcmp(argv[1],"--smoke-hwservicemanager")){pv_service_mode=3;return pv_main(argv[2]);}

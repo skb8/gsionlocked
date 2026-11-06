@@ -37,6 +37,24 @@ static int sm_make_own_pid_alias(int proc){
     char path[96];snprintf(path,sizeof(path),"/proc/self/fd/%d/%s",proc,name);const char label[]="u:object_r:system_file:s0";
     return lsetxattr(path,"security.selinux",label,sizeof(label),0);
 }
+/* Expose only the entropy device, with its existing label and a read-only mount.
+   The private /dev remains nodev; this single bind has its own mount flags. */
+static int sm_entropy_device(int dev){
+    int source=open("/dev/urandom",O_PATH|O_NOFOLLOW|O_CLOEXEC);if(source<0)return -1;
+    struct stat original;int error=0,target=-1;char from[64],to[64];
+    if(fstat(source,&original))error=errno;
+    else if(!S_ISCHR(original.st_mode)||major(original.st_rdev)!=1||minor(original.st_rdev)!=9)error=ENODEV;
+    if(!error){target=openat(dev,"urandom",O_CREAT|O_EXCL|O_RDONLY|O_CLOEXEC,0444);if(target<0)error=errno;}
+    if(!error){sm_fdpath(from,sizeof(from),source);sm_fdpath(to,sizeof(to),target);if(mount(from,to,NULL,MS_BIND,NULL))error=errno;}
+    if(target>=0)close(target);
+    if(!error){target=openat(dev,"urandom",O_PATH|O_NOFOLLOW|O_CLOEXEC);if(target<0)error=errno;else{
+        sm_fdpath(to,sizeof(to),target);if(mount(NULL,to,NULL,MS_BIND|MS_REMOUNT|MS_RDONLY|MS_NOSUID|MS_NOEXEC,NULL))error=errno;
+        struct stat actual;struct statvfs flags;if(!error&&(fstat(target,&actual)||fstatvfs(target,&flags)))error=errno;
+        if(!error&&(!pd_same_inode(&original,&actual)||actual.st_rdev!=original.st_rdev||!(flags.f_flag&ST_RDONLY)||(flags.f_flag&ST_NODEV)))error=EXDEV;
+        close(target);
+    }}
+    close(source);if(error){errno=error;return -1;}return 0;
+}
 static int sm_prepare_fs(int root,int helper,uint64_t helper_bytes,const char *helper_sha,struct sm_environment *result,int *context_fd,const struct sm_kind *kind){
     int dev=-1,bfs=-1,control=-1,fd=-1,sys=-1,fsdir=-1,sel=-1,host_sel=-1,query[2]={-1,-1},proc=-1,self=-1,attr=-1,host_attr=-1,host_exec=-1,service=-1,bin=-1,data=-1,local=-1,tmp=-1,error=0;char path[96],digest[65];struct stat stock[3];int present[3]={0};
     const char *names[]={"binder","hwbinder","vndbinder"},*queries[]={"access","context"};
@@ -51,7 +69,7 @@ static int sm_prepare_fs(int root,int helper,uint64_t helper_bytes,const char *h
     struct stat current_binder;SM_TRY(stat(selected_path,&current_binder));if(!pd_same_inode(&current_binder,&stock[kind->binder_index])||current_binder.st_rdev!=stock[kind->binder_index].st_rdev){error=ESTALE;goto done;}
     char binder_options[512];snprintf(binder_options,sizeof(binder_options),"max=4,context=\"%s\",rootcontext=\"u:object_r:system_file:s0\",fscontext=\"u:object_r:tmpfs:s0\"",binder_label);
     result->stage=2;
-    SM_TRY(dev=sm_new_tmpfs(root,"dev","size=1m,mode=0755",MS_NOEXEC));SM_TRY(bfs=sm_make_path(dev,"binderfs",0755));sm_fdpath(path,sizeof(path),bfs);result->stage=3;SM_TRY(mount("binder",path,"binder",MS_NOSUID|MS_NOEXEC,binder_options));close(bfs);bfs=-1;
+    SM_TRY(dev=sm_new_tmpfs(root,"dev","size=1m,mode=0755",MS_NOEXEC));SM_TRY(sm_entropy_device(dev));SM_TRY(bfs=sm_make_path(dev,"binderfs",0755));sm_fdpath(path,sizeof(path),bfs);result->stage=3;SM_TRY(mount("binder",path,"binder",MS_NOSUID|MS_NOEXEC,binder_options));close(bfs);bfs=-1;
     SM_TRY(bfs=openat(dev,"binderfs",O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC));SM_TRY(control=openat(bfs,"binder-control",O_RDONLY|O_NOFOLLOW|O_CLOEXEC));
     struct stat ci;struct statfs btype;SM_TRY(fstat(control,&ci));SM_TRY(fstatfs(control,&btype));SM_TRY(fchown(control,0,0));SM_TRY(fchmod(control,0600));if(!S_ISCHR(ci.st_mode)||(unsigned long)btype.f_type!=BINDERFS_SUPER_MAGIC){error=ENODEV;goto done;}
     result->stage=4;
