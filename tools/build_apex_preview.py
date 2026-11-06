@@ -32,13 +32,14 @@ def main():
     include=generate_services(build/'include');generate_pins(json.loads((ROOT/'profiles/pd2425-evox-apex.json').read_text()),include/'apex_pins.generated.h')
     src=ROOT/'runtime/pd2425/src';headers=ROOT/'runtime/pd2425/include'
     helper=a.output/'selinux-check.so';run(clang,'--target=aarch64-linux-android33','-shared','-fPIC','-O2','-Wall','-Wextra','-Werror',src/'apex_selinux.c','-ldl','-o',helper)
+    service=a.output/'pd2425-sm-check.so';run(clang,'--target=aarch64-linux-android33','-shared','-fPIC','-O2','-Wall','-Wextra','-Werror',src/'service_check.c','-ldl','-o',service)
     run(java/('javac'+suffix),'--release','8','-d',classes,ROOT/'runtime/pd2425/tests/ArtProbe.java')
     run(java/('java'+suffix),'-cp',d8,'com.android.tools.r8.D8','--min-api','33','--lib',android,'--output',dex,*sorted(classes.rglob('*.class')))
     jar=a.output/'art-probe.jar'
     with zipfile.ZipFile(jar,'w',zipfile.ZIP_DEFLATED) as z:z.write(dex/'classes.dex','classes.dex')
     pins=include/'apex_binary_pins.generated.h'
-    pins.write_text('\n'.join('#define '+prefix+'_BYTES '+str(path.stat().st_size)+'\n#define '+prefix+'_SHA "'+hashlib.sha256(path.read_bytes()).hexdigest()+'"' for prefix,path in [('AP_JAR',jar),('AP_SELINUX',helper)])+'\n',encoding='utf-8')
+    pins.write_text('\n'.join('#define '+prefix+'_BYTES '+str(path.stat().st_size)+'\n#define '+prefix+'_SHA "'+hashlib.sha256(path.read_bytes()).hexdigest()+'"' for prefix,path in [('AP_JAR',jar),('AP_SELINUX',helper),('AP_SERVICE',service)])+'\n',encoding='utf-8')
     run(clang,'--target=aarch64-linux-android33','-static','-O2','-Wall','-Wextra','-Werror','-include',pins,'-I',include,'-I',headers,'-I',src,src/'apex_preview.c','-o',a.output/'apex-preview')
-    report={'schema':1,'runtime_ready':False,'guest_boot_complete':False,'image_sha256':json.loads((ROOT/'profiles/pd2425-evox-preview.json').read_text())['image_sha256'],'files':{path.name:hashlib.sha256(path.read_bytes()).hexdigest() for path in (a.output/'apex-preview',jar,helper)}}
+    report={'schema':1,'runtime_ready':False,'guest_boot_complete':False,'image_sha256':json.loads((ROOT/'profiles/pd2425-evox-preview.json').read_text())['image_sha256'],'files':{path.name:hashlib.sha256(path.read_bytes()).hexdigest() for path in (a.output/'apex-preview',jar,helper,service)}}
     (a.output/'build.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8');print(a.output)
 if __name__=='__main__':main()

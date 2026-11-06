@@ -44,7 +44,7 @@ python tools/build_apex_preview.py --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME
 python tools/prepare_pd2425_apex.py /private/selected.img --output /private/apex-inputs
 ```
 
-`dist/pd2425-apex-preview/` contains the CLI, selinux-check.so, art-probe.jar and
+`dist/pd2425-apex-preview/` contains the CLI, selinux-check.so, pd2425-sm-check.so, art-probe.jar and
 build hashes. The prepared `.img` payloads and GSI are private external inputs;
 they are not redistributed. Source catalogs and original-image hashes must
 match. The input extractor does not provide AVB signature/attestation proof.
@@ -65,8 +65,7 @@ The final JSON explicitly reports runtime_ready=false, guest_boot_complete=false
 display_handoff=false and touch_handoff=false. An APK-only update does not stage
 these payloads or expose this developer CLI in the UI.
 
-Next required work is a jointly supervised private service-manager/property
-session, followed by Zygote/system_server, and then an independently recoverable
+Next required work is Zygote/system_server, and then an independently recoverable
 Vivo HAL / SurfaceFlinger / input handoff. Separate smoke tests do not authorize
 hardware takeover. The existing PD2425 launch guard stays disabled.
 
@@ -74,3 +73,46 @@ Linker configuration inputs follow the
 [AOSP linkerconfig interface](https://android.googlesource.com/platform/system/linkerconfig/)
 and the
 [AOSP APEX info schema](https://android.googlesource.com/platform/system/apex/+/master/apexd/ApexInfoList.xsd).
+
+## Shared service session
+
+The optional third argument `--with-services` runs real GSI servicemanager and
+hwservicemanager together while ART and AndroidRuntime execute their Java probes.
+Stage the matching build's `pd2425-sm-check.so` alongside the other two helpers.
+Both pinned ELF entry copies require that constructor through DT_NEEDED; each
+checks the actual service SELinux domain, UID/GID1000, empty capabilities, NNP,
+seccomp, genuine kernel permission results and the expected owner. No service
+permission results or readiness values are replaced.
+
+Three separately labelled private BinderFS mounts provide isolated binder,
+hwbinder and vndbinder devices; their device identities cannot match stock IPC.
+Every child gets its own read-only proc view before dropping privileges. The
+trusted supervisor alone can inspect the registered unreaped service processes.
+A capless init-domain broker accepts property-service v2 requests only from the
+owned UID/GID1000 manager PID for that manager's exact ready=true key. Readiness
+is published only after a genuine authenticated request. A repeated identical
+request is idempotent. Other keys, identities and values are rejected.
+
+Success requires real Binder/HIDL RPC and process identity checks, both genuine
+ready properties, Java ServiceManager.listServices() through the same private
+Binder, the existing authenticated Java completion marker, and repeated RPC /
+identity checks after Java. The supervisor owns pidfds for all three children,
+monitors their survival during Java, and kills/reaps them in reverse order on
+success or failure. If pidfd creation fails, cleanup first proves the PID is
+still an unreaped direct child before signalling it. Parent-death signals are
+rearmed after identity changes. No guest can fork or signal another process.
+
+The PD2425 development-device test returned COMMON_SERVICE_SESSION_READY,
+PD2425_COMMON_SERVICES_JAVA_OK count=1, both COMMON_RPC_RECHECK_OK records and
+COMMON_SERVICES_CLEANUP errno=0, then preview_passed=true and
+common_services_verified=true. Host services remained running, Enforcing stayed
+on and all 37 loop devices were released. This proves this bounded common
+session; it does not establish Zygote, system_server, HALs, graphics or touch.
+The APK UI and full-boot launch guard are unchanged.
+
+A separate physical fault test killed only the reported owned hwservicemanager
+after verifying its supervisor ancestry. The running Java probe was stopped,
+preview_passed stayed false, all three registered children were reaped with
+COMMON_SERVICES_CLEANUP errno=0, and all 37 loops were released. Normal and
+failure worker exits both use the registry cleanup path. Host services and
+Enforcing were preserved in this test too.

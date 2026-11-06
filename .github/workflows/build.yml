@@ -35,6 +35,7 @@ jobs:
       - run: python tools/test_dependency_graph.py
       - run: python tools/test_apex_policy.py
       - run: python tools/test_apex_selinux.py
+      - run: python tools/test_apex_services.py
       - run: python tools/test_service_smoke.py
       - run: python tools/test_service_check.py
       - run: python tools/test_service_logging.py

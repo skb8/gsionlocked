@@ -9,6 +9,10 @@ public final class ArtProbe {
    if(!Boolean.TRUE.equals(selinux.getMethod("isSELinuxEnabled").invoke(null))||!Boolean.TRUE.equals(selinux.getMethod("isSELinuxEnforced").invoke(null)))throw new AssertionError("SELinux view");
    System.out.println("PD2425_ANDROID_RUNTIME_SELINUX_OK context="+selinux.getMethod("getContext").invoke(null));
   }
+  for(String arg:args)if("--verify-services".equals(arg)) {
+   Class<?> manager=Class.forName("android.os.ServiceManager");String[] services=(String[])manager.getMethod("listServices").invoke(null);if(services==null)throw new AssertionError("private service manager");
+   System.out.println("PD2425_COMMON_SERVICES_JAVA_OK count="+services.length);
+  }
   System.gc();String proof="PD2425_ART_MAIN_OK vm="+System.getProperty("java.vm.name")+" version="+System.getProperty("java.vm.version")+" thread="+value[0]+" framework="+framework.getName();
   System.out.println(proof);
   java.io.FileOutputStream output=new java.io.FileOutputStream(java.io.FileDescriptor.out);output.write((proof+"\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));output.flush();
