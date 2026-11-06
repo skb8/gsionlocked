@@ -237,3 +237,13 @@ parent-death SIGKILL and supervisor pidfd stop/reap. Guest UNIX stream sockets
 remain within its existing private network namespace/chroot. Also expose a
 read-only entropy-device bind and self-only legacy getrlimit. Full Android,
 APEX/ART, HAL handoff, display and touch are still unimplemented on PD2425.
+
+
+2026-11-07 ADB milestone: the pinned 36-APEX set, GSI-generated linker namespaces
+and classpaths, real ART Java execution and app_process64 / AndroidRuntime Java
+entry are now tested. The owned Java probe verifies a thread, GC, a framework
+class and genuine SELinux enabled/enforcing queries. UID1000, zero capabilities,
+NNP and default-deny filters remain; the development KSU context is retained.
+This does not start Zygote/system_server or hand off hardware. The separate CLI,
+its external prepared inputs and proof limitations are documented in
+[APEX_PREVIEW.md](APEX_PREVIEW.md). APK-only installation is insufficient.

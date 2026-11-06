@@ -33,6 +33,8 @@ jobs:
       - run: python tools/test_apex_manifest.py
       - run: python tools/test_preview_linkerconfig.py
       - run: python tools/test_dependency_graph.py
+      - run: python tools/test_apex_policy.py
+      - run: python tools/test_apex_selinux.py
       - run: python tools/test_service_smoke.py
       - run: python tools/test_service_check.py
       - run: python tools/test_service_logging.py
@@ -53,6 +55,11 @@ jobs:
         with:
           name: gsionlocked-pd2425-diagnostics
           path: dist/gsionlocked.apk
+      - run: python tools/build_apex_preview.py --sdk "$ANDROID_HOME" --java-home "$JAVA_HOME" --ndk "$ANDROID_HOME/ndk/25.2.9519653"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pd2425-apex-art-preview-cli
+          path: dist/pd2425-apex-preview/
       - run: python tools/package_source.py
       - uses: actions/upload-artifact@v4
         with:
